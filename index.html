@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trifusion Technologies ERP Fiscal</title>
+    <meta name="theme-color" content="#0A0A0F" />
+    <meta
+      name="description"
+      content="ERP, POS y facturacion fiscal premium para tiendas tecnologicas en Republica Dominicana."
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      (function() {
+        var waited = 0, maxWait = 60
+        function check() {
+          if (waited++ > maxWait) return
+          var s = window.__STORE__
+          if (!s || !s.getState) return void setTimeout(check, 500)
+          var state = s.getState()
+          if (!state || !state.verifyDataIntegrity) return void setTimeout(check, 500)
+          if (!state.invoices || state.invoices.length === 0) return void setTimeout(check, 500)
+          try {
+            var report = state.verifyDataIntegrity()
+            var total = (report.invalidStatusInvoices||0)+(report.orphanReceivables||0)+(report.orphanPayments||0)+(report.orphanInventoryMovements||0)+(report.orphanFinancialMovements||0)+(report.orphanCreditNotes||0)
+            if (total > 0) state.cleanupOrphanData()
+            state.recalculateFinancialFields()
+            state.refreshReportStats()
+          } catch(e) { console.error('Auto-cleanup error:', e) }
+        }
+        setTimeout(check, 3000)
+      })()
+    </script>
+  </body>
+</html>

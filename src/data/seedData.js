@@ -1,0 +1,10 @@
+export const company = {}
+export const branches = []
+export const users = []
+export const products = []
+export const customers = []
+export const taxSequences = []
+export const cashRegister = {}
+export const serviceOrders = []
+export const invoices = []
+export const auditLogs = []

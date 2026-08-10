@@ -1,0 +1,298 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function userRole() {
+      return isAuthenticated()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function tokenRole() {
+      return isAuthenticated() ? request.auth.token.role : null;
+    }
+
+    function roleIn(roles) {
+      return isAuthenticated() && (userRole() in roles || tokenRole() in roles);
+    }
+
+    function isAdmin() {
+      return roleIn(['admin', 'Admin']);
+    }
+
+    function isSupervisor() {
+      return roleIn(['admin', 'Admin', 'supervisor', 'Supervisor']);
+    }
+
+    function isCashier() {
+      return roleIn(['admin', 'Admin', 'cashier', 'Cajero', 'supervisor', 'Supervisor', 'seller', 'Vendedor']);
+    }
+
+    function isInventoryStaff() {
+      return roleIn(['admin', 'Admin', 'supervisor', 'Supervisor', 'warehouse', 'Bodeguero']);
+    }
+
+    function isAccountingStaff() {
+      return roleIn(['admin', 'Admin', 'accountant', 'Contador', 'supervisor', 'Supervisor']);
+    }
+
+    function isCompanyMember(companyId) {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/companies/$(companyId)/members/$(request.auth.uid));
+    }
+
+    function companyRole(companyId) {
+      return isCompanyMember(companyId)
+        ? get(/databases/$(database)/documents/companies/$(companyId)/members/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function companyRoleIn(companyId, roles) {
+      return isCompanyMember(companyId) && companyRole(companyId) in roles;
+    }
+
+    function isTenantPayload(companyId) {
+      return !('companyId' in request.resource.data) || request.resource.data.companyId == companyId;
+    }
+
+    match /accounts/{userId}/erp/{docId} {
+      allow read, create, update, delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    match /accounts/{userId}/{document=**} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    match /companies/{companyId} {
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow read: if isCompanyMember(companyId) || resource.data.ownerId == request.auth.uid;
+      allow update, delete: if companyRoleIn(companyId, ['owner', 'admin', 'Admin']) || resource.data.ownerId == request.auth.uid;
+
+      match /members/{userId} {
+        allow read: if isCompanyMember(companyId) || userId == request.auth.uid;
+        allow create: if isAuthenticated() && (request.auth.uid == userId || companyRoleIn(companyId, ['owner', 'admin', 'Admin']));
+        allow update, delete: if companyRoleIn(companyId, ['owner', 'admin', 'Admin']);
+      }
+
+      match /audit_logs/{logId} {
+        allow read: if companyRoleIn(companyId, ['owner', 'admin', 'Admin', 'accountant', 'Contador', 'supervisor', 'Supervisor']);
+        allow create: if isCompanyMember(companyId) && isTenantPayload(companyId);
+        allow update, delete: if false;
+      }
+
+      match /{tenantCollection}/{documentId} {
+        allow read: if isCompanyMember(companyId);
+        allow create: if isCompanyMember(companyId) && isTenantPayload(companyId);
+        allow update: if isCompanyMember(companyId) && isTenantPayload(companyId);
+        allow delete: if companyRoleIn(companyId, ['owner', 'admin', 'Admin']);
+      }
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update, delete: if isAdmin();
+    }
+
+    match /clients/{clientId} {
+      allow read: if isAuthenticated();
+      allow create: if isCashier();
+      allow update, delete: if isAdmin();
+    }
+
+    match /customers/{customerId} {
+      allow read: if isAuthenticated();
+      allow create: if isCashier();
+      allow update, delete: if isAdmin();
+    }
+
+    match /suppliers/{supplierId} {
+      allow read: if isAuthenticated();
+      allow create: if isInventoryStaff();
+      allow update, delete: if isAdmin();
+    }
+
+    match /invoices/{invoiceId} {
+      allow read: if isAuthenticated();
+      allow create: if isCashier();
+      allow update: if isAdmin()
+        || isCashier()
+        || (
+          isAccountingStaff()
+          && (!('status' in resource.data) || request.resource.data.status == 'voided')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'voidReason', 'voidedAt', 'updatedAt'])
+        );
+      allow delete: if false;
+    }
+
+    match /invoice_items/{itemId} {
+      allow read: if isAuthenticated();
+      allow create: if isCashier();
+      allow update, delete: if isAdmin();
+    }
+
+    match /quotes/{quoteId} {
+      allow read, create, update, delete: if isAuthenticated();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated();
+      allow create: if isCashier();
+      allow update, delete: if isAdmin();
+    }
+
+    match /expenses/{expenseId} {
+      allow read: if isAuthenticated();
+      allow create: if isCashier();
+      allow update, delete: if isAdmin();
+    }
+
+    match /receivables/{receivableId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isCashier();
+      allow delete: if isAdmin();
+    }
+
+    match /purchases/{purchaseId} {
+      allow read: if isAuthenticated();
+      allow create: if isInventoryStaff();
+      allow update, delete: if isAdmin();
+    }
+
+    match /purchase_items/{itemId} {
+      allow read: if isAuthenticated();
+      allow create: if isInventoryStaff();
+      allow update, delete: if isAdmin();
+    }
+
+    match /kardex/{kardexId} {
+      allow read: if isAuthenticated();
+      allow create: if isCashier();
+      allow update, delete: if false;
+    }
+
+    match /inventory_movements/{movementId} {
+      allow read: if isAuthenticated();
+      allow create: if isInventoryStaff() || isCashier();
+      allow update, delete: if false;
+    }
+
+    match /inventario/{itemId} {
+      allow read: if isAuthenticated();
+      allow create: if isCashier();
+      allow update, delete: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow create: if isInventoryStaff() || isCashier();
+      allow update, delete: if isAdmin();
+    }
+
+    match /product_serials/{serialId} {
+      allow read: if isAuthenticated();
+      allow create: if isInventoryStaff();
+      allow update, delete: if isAdmin();
+    }
+
+    match /categories/{doc} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /config/{doc} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /tax_sequences/{sequenceId} {
+      allow read: if isAuthenticated();
+      allow write: if isAccountingStaff();
+    }
+
+    match /counters/{counterId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /cash_registers/{registerId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isCashier();
+      allow delete: if isAdmin();
+    }
+
+    match /cash_movements/{movementId} {
+      allow read: if isAuthenticated();
+      allow create: if isCashier();
+      allow update, delete: if isAdmin();
+    }
+
+    match /service_orders/{orderId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isCashier();
+      allow delete: if isAdmin();
+    }
+
+    match /warranties/{warrantyId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isCashier();
+      allow delete: if isAdmin();
+    }
+
+    match /printers/{printerId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    match /monitores/{monitorId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    match /ups/{upsId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    match /usuarios/{userId}/notas/{notaId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    match /reports/{reportId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isSupervisor();
+    }
+
+    match /logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isAccountingStaff();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
