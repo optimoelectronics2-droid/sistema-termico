@@ -111,9 +111,11 @@ export function EntryHistory({ entries, onView, onLabels, onEdit, onDelete, show
   const safePage = Math.min(page, totalPages)
   const visibleRows = sortedRows.slice((safePage - 1) * pageSize, safePage * pageSize)
 
+  // Evita renders en cascada reseteando solo cuando es necesario
   useEffect(() => {
-    setPage(1)
-  }, [rows, dateFrom, dateTo, typeFilter, query, sort, pageSize])
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (page !== 1) setPage(1)
+  }, [rows, dateFrom, dateTo, typeFilter, query, sort, pageSize, page])
 
   function applyChip(id) {
     const range = quickChipRange(id)

@@ -72,7 +72,7 @@ function drawCoverPage(doc, company, stats, genDate, user) {
 }
 
 /* ============ TABLE OF CONTENTS ============ */
-function drawTableOfContents(doc, company, genDate) {
+function drawTableOfContents(doc, company) {
   doc.addPage()
   drawPageHeader(doc, 'Tabla de Contenido', company)
   const sections = [
@@ -88,11 +88,11 @@ function drawTableOfContents(doc, company, genDate) {
     ['10', 'Metodos de Pago', 'Pagina 12'],
     ['11', 'Analisis Comparativo', 'Pagina 13'],
   ]
-  autoTable(doc, {
+  autoTable(doc, { tableWidth: "wrap", margin: { left: MARGIN, right: MARGIN },
     startY: 40,
     head: [['#', 'Seccion', 'Pagina']],
     body: sections,
-    styles: { font: 'helvetica', fontSize: 10, cellPadding: 4 },
+    styles: { overflow: "linebreak", cellWidth: "wrap", font: 'helvetica', fontSize: 10, cellPadding: 4 },
     headStyles: { fillColor: COLORS.accent, textColor: 255, fontStyle: 'bold' },
     columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 130 }, 2: { cellWidth: 30, halign: 'right' } },
     alternateRowStyles: { fillColor: COLORS.light },
@@ -100,7 +100,7 @@ function drawTableOfContents(doc, company, genDate) {
 }
 
 /* ============ SECTION 1 - EXECUTIVE SUMMARY ============ */
-function drawSection1ExecutiveSummary(doc, company, stats, genDate) {
+function drawSection1ExecutiveSummary(doc, company, stats) {
   doc.addPage()
   drawSectionHeader(doc, '1. Resumen Ejecutivo', 'Panorama general del desempeno financiero del periodo analizado.', company)
   const exec = stats.executiveSummary
@@ -109,7 +109,7 @@ function drawSection1ExecutiveSummary(doc, company, stats, genDate) {
   let y = 50
   const indicators = exec.indicators || []
   const rows = chunk(indicators, 2)
-  rows.forEach((row, ri) => {
+  rows.forEach((row) => {
     row.forEach((ind, ci) => {
       const x = MARGIN + ci * (CONTENT_W / 2 + 4)
       drawMetricCard(doc, x, y, ind.label, ind.formatted || String(ind.value), ind.interpretation, ind.formula, ind.color || 'blue')
@@ -121,7 +121,7 @@ function drawSection1ExecutiveSummary(doc, company, stats, genDate) {
 }
 
 /* ============ SECTION 2 - CASH SALES ============ */
-function drawSection2CashSales(doc, company, stats, genDate) {
+function drawSection2CashSales(doc, company, stats) {
   doc.addPage()
   drawSectionHeader(doc, '2. Ventas al Contado', 'Transacciones pagadas de contado (efectivo, tarjeta, transferencia, cheques).', company)
   const section = stats.cashSales
@@ -139,7 +139,7 @@ function drawSection2CashSales(doc, company, stats, genDate) {
 }
 
 /* ============ SECTION 3 - CREDIT SALES ============ */
-function drawSection3CreditSales(doc, company, stats, genDate) {
+function drawSection3CreditSales(doc, company, stats) {
   doc.addPage()
   drawSectionHeader(doc, '3. Ventas a Credito', 'Transacciones realizadas a credito, su estado de cobro y recuperacion.', company)
   const section = stats.creditSales
@@ -157,7 +157,7 @@ function drawSection3CreditSales(doc, company, stats, genDate) {
 }
 
 /* ============ SECTION 4 - AVERAGE TICKET ============ */
-function drawSection4AverageTicket(doc, company, stats, genDate) {
+function drawSection4AverageTicket(doc, company, stats) {
   doc.addPage()
   drawSectionHeader(doc, '4. Ticket Promedio', 'Monto promedio que gasta cada cliente por compra.', company)
   const section = stats.averageTicket
@@ -195,7 +195,7 @@ function drawSection4AverageTicket(doc, company, stats, genDate) {
 }
 
 /* ============ SECTION 5 - PROFITABILITY ============ */
-function drawSection5Profitability(doc, company, stats, genDate) {
+function drawSection5Profitability(doc, company, stats) {
   doc.addPage()
   drawSectionHeader(doc, '5. Analisis de Rentabilidad', 'Evaluacion detallada de la rentabilidad del negocio.', company)
   const section = stats.profitability
@@ -229,7 +229,7 @@ function drawSection5Profitability(doc, company, stats, genDate) {
 }
 
 /* ============ SECTION 6 - ACCOUNTS RECEIVABLE ============ */
-function drawSection6AccountsReceivable(doc, company, stats, genDate) {
+function drawSection6AccountsReceivable(doc, company, stats) {
   doc.addPage()
   drawSectionHeader(doc, '6. Cuentas por Cobrar', 'Analisis de antiguedad de saldos pendientes de cobro.', company)
   const section = stats.accountsReceivable
@@ -251,11 +251,11 @@ function drawSection6AccountsReceivable(doc, company, stats, genDate) {
     doc.setTextColor(...COLORS.primary)
     doc.text('Antiguedad de saldos', MARGIN, y)
     y += 6
-    autoTable(doc, {
+    autoTable(doc, { tableWidth: "wrap", margin: { left: MARGIN, right: MARGIN },
       startY: y,
       head: [['Rango', 'Facturas', 'Monto']],
       body: aging.map((a) => [a.range === '0-30' ? '0 a 30 dias' : a.range === '31-60' ? '31 a 60 dias' : a.range === '61-90' ? '61 a 90 dias' : 'Mas de 90 dias', String(a.count), num(a.total)]),
-      styles: { font: 'helvetica', fontSize: 9, cellPadding: 3 },
+      styles: { overflow: "linebreak", cellWidth: "wrap", font: 'helvetica', fontSize: 9, cellPadding: 3 },
       headStyles: { fillColor: COLORS.accent, textColor: 255, fontStyle: 'bold' },
       columnStyles: { 0: { cellWidth: 80 }, 1: { halign: 'center' }, 2: { halign: 'right' } },
       alternateRowStyles: { fillColor: COLORS.light },
@@ -269,11 +269,11 @@ function drawSection6AccountsReceivable(doc, company, stats, genDate) {
     doc.setTextColor(...COLORS.primary)
     doc.text(`Detalle de facturas vencidas (0-30 dias)`, MARGIN, y)
     y += 6
-    autoTable(doc, {
+    autoTable(doc, { tableWidth: "wrap", margin: { left: MARGIN, right: MARGIN },
       startY: y,
       head: [['Factura', 'Cliente', 'Monto', 'Dias vencido']],
       body: aging[0].invoices.slice(0, 15).map((inv) => [inv.number, inv.customer, num(inv.amount), `${inv.days}d`]),
-      styles: { font: 'helvetica', fontSize: 8, cellPadding: 2 },
+      styles: { overflow: "linebreak", cellWidth: "wrap", font: 'helvetica', fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: COLORS.red, textColor: 255, fontStyle: 'bold' },
       columnStyles: { 2: { halign: 'right' }, 3: { halign: 'center' } },
       alternateRowStyles: { fillColor: COLORS.light },
@@ -282,7 +282,7 @@ function drawSection6AccountsReceivable(doc, company, stats, genDate) {
 }
 
 /* ============ SECTION 7 - TAX SUMMARY ============ */
-function drawSection7TaxSummary(doc, company, stats, genDate) {
+function drawSection7TaxSummary(doc, company, stats) {
   doc.addPage()
   drawSectionHeader(doc, '7. Resumen de ITBIS', 'Desglose detallado del Impuesto a la Transferencia de Bienes Industrializados y Servicios.', company)
   const section = stats.taxSummary
@@ -313,11 +313,11 @@ function drawSection7TaxSummary(doc, company, stats, genDate) {
     doc.setTextColor(...COLORS.primary)
     doc.text('Distribucion por regimen fiscal', MARGIN, y)
     y += 6
-    autoTable(doc, {
+    autoTable(doc, { tableWidth: "wrap", margin: { left: MARGIN, right: MARGIN },
       startY: y,
       head: [['Regimen', 'Facturas', 'Total', 'ITBIS', '% del total']],
       body: buckets.map((b) => [b.name, String(b.count), num(b.total), num(b.itbis), `${b.pct.toFixed(1)}%`]),
-      styles: { font: 'helvetica', fontSize: 9, cellPadding: 3 },
+      styles: { overflow: "linebreak", cellWidth: "wrap", font: 'helvetica', fontSize: 9, cellPadding: 3 },
       headStyles: { fillColor: COLORS.purple, textColor: 255, fontStyle: 'bold' },
       columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'center' } },
       alternateRowStyles: { fillColor: COLORS.light },
@@ -327,7 +327,7 @@ function drawSection7TaxSummary(doc, company, stats, genDate) {
 }
 
 /* ============ SECTION 8 - PRODUCTS ============ */
-function drawSection8Products(doc, company, stats, genDate) {
+function drawSection8Products(doc, company, stats) {
   doc.addPage()
   drawSectionHeader(doc, '8. Analisis de Productos', 'Rendimiento detallado del catalogo de productos.', company)
   const section = stats.productAnalysis
@@ -338,11 +338,11 @@ function drawSection8Products(doc, company, stats, genDate) {
   if (section.topSelling?.length) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...COLORS.primary)
     doc.text('Productos mas vendidos', MARGIN, y); y += 6
-    autoTable(doc, {
+    autoTable(doc, { tableWidth: "wrap", margin: { left: MARGIN, right: MARGIN },
       startY: y,
       head: [['Producto', 'SKU', 'Cantidad', 'Ingreso', 'Ganancia', 'Margen']],
       body: section.topSelling.slice(0, 10).map((p) => [p.name, p.sku || '-', String(p.quantity), num(p.revenue), num(p.profit), `${(p.margin || 0).toFixed(1)}%`]),
-      styles: { font: 'helvetica', fontSize: 8, cellPadding: 2 },
+      styles: { overflow: "linebreak", cellWidth: "wrap", font: 'helvetica', fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: COLORS.green, textColor: 255, fontStyle: 'bold' },
       columnStyles: { 2: { halign: 'center' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'center' } },
       alternateRowStyles: { fillColor: COLORS.light },
@@ -353,11 +353,11 @@ function drawSection8Products(doc, company, stats, genDate) {
   if (section.mostProfitable?.length) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...COLORS.primary)
     doc.text('Productos mas rentables', MARGIN, y); y += 6
-    autoTable(doc, {
+    autoTable(doc, { tableWidth: "wrap", margin: { left: MARGIN, right: MARGIN },
       startY: y,
       head: [['Producto', 'SKU', 'Ganancia', 'Margen', 'Ingreso']],
       body: section.mostProfitable.slice(0, 10).map((p) => [p.name, p.sku || '-', num(p.profit), `${(p.margin || 0).toFixed(1)}%`, num(p.revenue)]),
-      styles: { font: 'helvetica', fontSize: 8, cellPadding: 2 },
+      styles: { overflow: "linebreak", cellWidth: "wrap", font: 'helvetica', fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: COLORS.cyan, textColor: 255, fontStyle: 'bold' },
       columnStyles: { 2: { halign: 'right' }, 3: { halign: 'center' }, 4: { halign: 'right' } },
       alternateRowStyles: { fillColor: COLORS.light },
@@ -369,11 +369,11 @@ function drawSection8Products(doc, company, stats, genDate) {
     y += 2
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...COLORS.primary)
     doc.text('Inventario inmovilizado (sin venta en mas de 90 dias)', MARGIN, y); y += 6
-    autoTable(doc, {
+    autoTable(doc, { tableWidth: "wrap", margin: { left: MARGIN, right: MARGIN },
       startY: y,
       head: [['Producto', 'SKU', 'Stock', 'Valor retenido', 'Dias sin vender']],
       body: section.stagnantInventory.slice(0, 15).map((p) => [p.name, p.sku || '-', String(p.stock), num(p.retainedValue), `${p.daysWithoutSelling}d`]),
-      styles: { font: 'helvetica', fontSize: 8, cellPadding: 2 },
+      styles: { overflow: "linebreak", cellWidth: "wrap", font: 'helvetica', fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: COLORS.red, textColor: 255, fontStyle: 'bold' },
       columnStyles: { 2: { halign: 'center' }, 3: { halign: 'right' }, 4: { halign: 'center' } },
       alternateRowStyles: { fillColor: COLORS.light },
@@ -385,7 +385,7 @@ function drawSection8Products(doc, company, stats, genDate) {
 }
 
 /* ============ SECTION 9 - CUSTOMERS ============ */
-function drawSection9Customers(doc, company, stats, genDate) {
+function drawSection9Customers(doc, company, stats) {
   doc.addPage()
   drawSectionHeader(doc, '9. Analisis de Clientes', 'Comportamiento de compra, credito y fidelidad de los clientes.', company)
   const section = stats.customerAnalysis
@@ -396,11 +396,11 @@ function drawSection9Customers(doc, company, stats, genDate) {
   if (section.bestCustomers?.length) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...COLORS.primary)
     doc.text('Mejores clientes por ingresos', MARGIN, y); y += 6
-    autoTable(doc, {
+    autoTable(doc, { tableWidth: "wrap", margin: { left: MARGIN, right: MARGIN },
       startY: y,
       head: [['Cliente', 'Facturas', 'Compras totales', 'ITBIS', 'Ticket promedio']],
       body: section.bestCustomers.slice(0, 10).map((c) => [c.name, String(c.documents), num(c.netRevenue), num(c.tax || 0), num(c.averageTicket || 0)]),
-      styles: { font: 'helvetica', fontSize: 8, cellPadding: 2 },
+      styles: { overflow: "linebreak", cellWidth: "wrap", font: 'helvetica', fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: COLORS.indigo, textColor: 255, fontStyle: 'bold' },
       columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
       alternateRowStyles: { fillColor: COLORS.light },
@@ -411,11 +411,11 @@ function drawSection9Customers(doc, company, stats, genDate) {
   if (section.creditCustomers?.length) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...COLORS.primary)
     doc.text('Clientes con creditos pendientes', MARGIN, y); y += 6
-    autoTable(doc, {
+    autoTable(doc, { tableWidth: "wrap", margin: { left: MARGIN, right: MARGIN },
       startY: y,
       head: [['Cliente', 'Monto pendiente', 'Dias vencido max']],
       body: section.creditCustomers.slice(0, 10).map((c) => [c.name, num(c.pendingAmount), `${c.maxDaysOverdue}d`]),
-      styles: { font: 'helvetica', fontSize: 8, cellPadding: 2 },
+      styles: { overflow: "linebreak", cellWidth: "wrap", font: 'helvetica', fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: COLORS.red, textColor: 255, fontStyle: 'bold' },
       columnStyles: { 1: { halign: 'right' }, 2: { halign: 'center' } },
       alternateRowStyles: { fillColor: COLORS.light },
@@ -426,11 +426,11 @@ function drawSection9Customers(doc, company, stats, genDate) {
   if (section.inactiveCustomers?.length) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...COLORS.primary)
     doc.text('Clientes inactivos (+90 dias sin comprar)', MARGIN, y); y += 6
-    autoTable(doc, {
+    autoTable(doc, { tableWidth: "wrap", margin: { left: MARGIN, right: MARGIN },
       startY: y,
       head: [['Cliente', 'Ultima compra', 'Dias sin comprar']],
       body: section.inactiveCustomers.slice(0, 10).map((c) => [c.name, shortDate(c.lastPurchase), `${c.daysSinceLastPurchase}d`]),
-      styles: { font: 'helvetica', fontSize: 8, cellPadding: 2 },
+      styles: { overflow: "linebreak", cellWidth: "wrap", font: 'helvetica', fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: COLORS.amber, textColor: 255, fontStyle: 'bold' },
       columnStyles: { 1: { halign: 'center' }, 2: { halign: 'center' } },
       alternateRowStyles: { fillColor: COLORS.light },
@@ -439,7 +439,7 @@ function drawSection9Customers(doc, company, stats, genDate) {
 }
 
 /* ============ SECTION 10 - PAYMENT METHODS ============ */
-function drawSection10PaymentMethods(doc, company, stats, genDate) {
+function drawSection10PaymentMethods(doc, company, stats) {
   doc.addPage()
   drawSectionHeader(doc, '10. Metodos de Pago', 'Distribucion de las transacciones por metodo de pago utilizado.', company)
   const section = stats.paymentMethodAnalysis
@@ -450,11 +450,11 @@ function drawSection10PaymentMethods(doc, company, stats, genDate) {
   if (methods.length) {
     const grandTotal = methods.reduce((s, m) => s + m.total, 0)
     const grandCount = methods.reduce((s, m) => s + m.count, 0)
-    autoTable(doc, {
+    autoTable(doc, { tableWidth: "wrap", margin: { left: MARGIN, right: MARGIN },
       startY: y,
       head: [['Metodo de pago', 'Transacciones', 'Monto total', 'Devoluciones', 'Neto', '% de uso']],
       body: methods.map((m) => [m.method, String(m.count), num(m.total), num(m.refunds || 0), num(m.net || m.total), `${m.percentage?.toFixed(1) || '0'}%`]),
-      styles: { font: 'helvetica', fontSize: 9, cellPadding: 3 },
+      styles: { overflow: "linebreak", cellWidth: "wrap", font: 'helvetica', fontSize: 9, cellPadding: 3 },
       headStyles: { fillColor: COLORS.accent, textColor: 255, fontStyle: 'bold' },
       columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'center' } },
       alternateRowStyles: { fillColor: COLORS.light },
@@ -468,7 +468,7 @@ function drawSection10PaymentMethods(doc, company, stats, genDate) {
 }
 
 /* ============ SECTION 11 - COMPARATIVE ============ */
-function drawSection11Comparative(doc, company, stats, genDate) {
+function drawSection11Comparative(doc, company, stats) {
   doc.addPage()
   drawSectionHeader(doc, '11. Analisis Comparativo', 'Variacion de indicadores clave entre periodos.', company)
   const section = stats.comparativeAnalysis
@@ -500,11 +500,11 @@ function drawSection11Comparative(doc, company, stats, genDate) {
     `${c.pctChange >= 0 ? '+' : ''}${c.pctChange.toFixed(1)}%`,
     c.direction === 'up' ? '▲ Incremento' : c.direction === 'down' ? '▼ Disminucion' : '▬ Estable',
   ])
-  autoTable(doc, {
+  autoTable(doc, { tableWidth: "wrap", margin: { left: MARGIN, right: MARGIN },
     startY: y,
     head: [['Periodo', 'Actual', 'Anterior', 'Diferencia', 'Variacion %', 'Tendencia']],
     body: compTable,
-    styles: { font: 'helvetica', fontSize: 9, cellPadding: 3 },
+    styles: { overflow: "linebreak", cellWidth: "wrap", font: 'helvetica', fontSize: 9, cellPadding: 3 },
     headStyles: { fillColor: COLORS.accent, textColor: 255, fontStyle: 'bold' },
     columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'center' }, 5: { halign: 'center' } },
     alternateRowStyles: { fillColor: COLORS.light },

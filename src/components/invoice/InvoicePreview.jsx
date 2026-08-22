@@ -84,7 +84,7 @@ function LetterInvoice({ invoice, company, customer, qr, compact, title, showAct
   return (
     <div className="space-y-3">
       {showActions ? <Actions invoice={invoice} customer={customer} company={company} /> : null}
-      <div id="invoice-preview" className={`invoice-paper mx-auto rounded-sm p-8 text-[12.5px] leading-relaxed ${compact ? 'max-w-[720px]' : 'max-w-[816px]'}`}>
+      <div id="invoice-preview" className={`invoice-paper relative mx-auto overflow-hidden rounded-sm p-8 text-[12.5px] leading-relaxed ${compact ? 'max-w-[720px]' : 'max-w-[816px]'}`}>
         <Header company={company} title={title} fiscal={fiscal} />
         <section className="mt-5 grid grid-cols-2 gap-5 border-y border-slate-300 py-4">
           <div>
@@ -174,7 +174,7 @@ function TicketInvoice({ invoice, company, customer, qr, title, showActions }) {
   return (
     <div className="space-y-3">
       {showActions ? <Actions invoice={invoice} customer={customer} company={company} /> : null}
-      <div id="invoice-preview" className="invoice-paper mx-auto w-[302px] rounded-sm p-3 text-center font-mono text-[11px]">
+      <div id="invoice-preview" className="invoice-paper relative mx-auto w-[302px] overflow-hidden rounded-sm p-3 text-center font-mono text-[11px]">
         <p className="text-lg font-black">{company?.name || 'Empresa'}</p>
         {fiscal && company?.rnc ? <p>RNC: {company.rnc}</p> : null}
         {company?.address ? <p>{company.address}</p> : null}
@@ -342,14 +342,8 @@ function buildVerificationData(invoice, company) {
 }
 
 function buildQrPayload(invoice, verification) {
-  return [
-    'Factura valida',
-    'Documento validado digitalmente',
-    'Código único de autenticación',
-    `Serial: ${verification.serial}`,
-    `Token: ${verification.token}`,
-    `Factura: ${displayInvoiceNumber(invoice)}`,
-  ].join('\n')
+  void verification
+  return `factura-${displayInvoiceNumber(invoice)}.pdf`
 }
 
 function buildVerificationToken(invoice, company) {

@@ -27,7 +27,13 @@ export const DataTable = memo(function DataTable({
     setPage(1)
   }, [deferredQuery, pageSize, sort, data])
 
-  const table = useReactTable({ data: visibleRows, columns, getCoreRowModel: getCoreRowModel() })
+  const normalizedColumns = useMemo(() => columns.map((col, idx) => {
+    if (col.id) return col
+    if (col.accessorKey) return { ...col, id: String(col.accessorKey) }
+    if (typeof col.header === 'string' && col.header) return { ...col, id: col.header }
+    return { ...col, id: `col-${idx}` }
+  }), [columns])
+  const table = useReactTable({ data: visibleRows, columns: normalizedColumns, getCoreRowModel: getCoreRowModel() })
   const hasToolbar = searchable || sortedData.length > pageSizeOptions[0]
   return (
     <div className="data-table-shell">

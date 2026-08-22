@@ -420,7 +420,7 @@ export function EntryReports() {
     })
   }
 
-  const actionColumn = (handler) => ({ header: '', cell: ({ row }) => <Button variant="ghost" icon={Eye} onClick={() => handler(row.original)}>Detalle</Button> })
+  const actionColumn = (handler) => ({ id: 'actions', header: '', cell: ({ row }) => <Button variant="ghost" icon={Eye} onClick={() => handler(row.original)}>Detalle</Button> })
 
   const detailColumns = [
     { header: 'Fecha', cell: ({ row }) => formatDate(row.original.date) },

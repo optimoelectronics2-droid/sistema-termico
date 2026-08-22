@@ -3,16 +3,19 @@ import {
   buildInvoiceCpcl,
   buildInvoiceEpl,
   buildInvoiceEscpos,
+  buildInvoiceEscposModern,
   buildInvoiceTspl,
   buildInvoiceZpl,
   buildTestCpcl,
   buildTestEpl,
   buildTestTspl,
   buildThermalTestEscpos,
+  buildThermalTestEscposModern,
   buildThermalTestZpl,
   downloadThermalFile,
   THERMAL_PROTOCOLS,
 } from '../lib/invoiceThermal'
+import { buildTestReceiptPdf, downloadReceiptPdf } from '../lib/receiptPdf'
 
 const PROFILE_KEY = 'erp.thermalPrinterProfile'
 const FILE_EXTENSION = { escpos: 'prn', zpl: 'zpl', epl: 'epl', tspl: 'tspl', cpcl: 'cpl' }
@@ -86,6 +89,8 @@ const DEFAULT_PROFILE = {
   fontScale: 0,
   lineSpacing: 30,
   columns: '2',
+  accentedText: false,
+  ticketStyle: 'classic',
 }
 
 export function saveThermalProfile(profile) {
@@ -119,21 +124,25 @@ function effectivePaperWidth(profile) {
   return profile.paperWidth || '80'
 }
 
-function buildInvoiceData({ invoice, company, customer, qrText = '', protocol, paperWidth, drawer, cut, drawerPulse, logo, qrEnabled, barcode, bold, fontScale, lineSpacing, columns }) {
-  const payload = { invoice, company, customer, qrText, paperWidth }
+function buildInvoiceData({ invoice, company, customer, qrText = '', protocol, paperWidth, drawer, cut, drawerPulse, logo, qrEnabled, barcode, bold, fontScale, lineSpacing, columns, accentedText, ticketStyle }) {
+  const payload = { invoice, company, customer, qrText, paperWidth, accentedText: accentedText === true, ticketStyle }
   if (protocol === 'zpl') return { data: new TextEncoder().encode(buildInvoiceZpl(payload)), kind: 'string' }
   if (protocol === 'epl') return { data: buildInvoiceEpl(payload), kind: 'string' }
   if (protocol === 'tspl') return { data: buildInvoiceTspl(payload), kind: 'string' }
   if (protocol === 'cpcl') return { data: buildInvoiceCpcl(payload), kind: 'string' }
-  return { data: buildInvoiceEscpos({ ...payload, drawer, cut, drawerPulse, logo, qrEnabled, showBarcode: barcode !== false, bold, fontScale, lineSpacing, columns }), kind: 'blob' }
+  const useModern = ticketStyle === 'modern'
+  const builder = useModern ? buildInvoiceEscposModern : buildInvoiceEscpos
+  return { data: builder({ ...payload, drawer, cut, drawerPulse, logo, qrEnabled, showBarcode: barcode !== false, bold, fontScale, lineSpacing, columns, accentedText: accentedText === true }), kind: 'blob' }
 }
 
-function buildTestData({ protocol, paperWidth }) {
+function buildTestData({ protocol, paperWidth, accentedText, ticketStyle }) {
   if (protocol === 'zpl') return { data: new TextEncoder().encode(buildThermalTestZpl()), kind: 'string' }
   if (protocol === 'epl') return { data: buildTestEpl(), kind: 'string' }
   if (protocol === 'tspl') return { data: buildTestTspl(), kind: 'string' }
   if (protocol === 'cpcl') return { data: buildTestCpcl(), kind: 'string' }
-  return { data: buildThermalTestEscpos({ paperWidth }), kind: 'blob' }
+  const useModern = ticketStyle === 'modern'
+  if (useModern) return { data: buildThermalTestEscposModern({ paperWidth, accentedText: accentedText === true }), kind: 'blob' }
+  return { data: buildThermalTestEscpos({ paperWidth, accentedText: accentedText === true }), kind: 'blob' }
 }
 
 async function asBytes(payload) {
@@ -141,6 +150,8 @@ async function asBytes(payload) {
   return payload.data
 }
 
+// Reservado para descarga cruda explícita (.prn/.zpl) — fallback ahora usa PDF
+// eslint-disable-next-line no-unused-vars
 async function downloadData(invoice, payload, protocol) {
   const extension = FILE_EXTENSION[protocol] || 'prn'
   downloadThermalFile(invoice, payload.kind === 'blob' ? payload.data : payload.data, protocol)
@@ -328,7 +339,7 @@ function resolveProtocol(profile, fallback) {
   return fallback
 }
 
-async function routeSend({ bytes, profile, paperWidth, downloadName }) {
+async function routeSend({ bytes, profile }) {
   const connection = profile.connection || 'auto'
   if (connection === 'file') return { ok: false, via: 'file' }
   if (connection === 'network') {
@@ -379,6 +390,7 @@ async function routeSend({ bytes, profile, paperWidth, downloadName }) {
 }
 
 export async function printInvoiceThermal({ invoice, company, customer, qrText = '', protocol, paperWidth, profileOverride }) {
+  void paperWidth
   const profile = { ...getThermalProfile(), ...(profileOverride || {}) }
   const useProtocol = resolveProtocol(profile, protocol || 'escpos')
   const payload = buildInvoiceData({
@@ -395,34 +407,39 @@ export async function printInvoiceThermal({ invoice, company, customer, qrText =
     fontScale: Number(profile.fontScale) || 0,
     lineSpacing: Number(profile.lineSpacing) || 30,
     columns: profile.columns || '2',
+    accentedText: profile.accentedText === true,
+    ticketStyle: profile.ticketStyle || 'classic',
   })
   try {
-    const result = await routeSend({ bytes: await asBytes(payload), profile, paperWidth, downloadName: invoice?.number })
+    const result = await routeSend({ bytes: await asBytes(payload), profile })
     if (result.ok) return result
     if (result.via === 'file' || result.via === 'none') {
-      const extension = await downloadData(invoice, payload, useProtocol)
-      return { ok: false, via: 'download', error: `Sin canal de impresion activo; se descargo el archivo .${extension}.` }
+      await downloadReceiptPdf(invoice, company, customer, qrText, effectivePaperWidth(profile))
+      return { ok: false, via: 'download', error: `Sin canal de impresión activo; se descargó el recibo en PDF.` }
     }
     if (result.via === 'config') return result
     return result
   } catch (error) {
-    const extension = await downloadData(invoice, payload, useProtocol)
-    return { ok: false, via: 'download', error: `${error.message} Se descargo el archivo .${extension} como respaldo.` }
+    await downloadReceiptPdf(invoice, company, customer, qrText, effectivePaperWidth(profile))
+    return { ok: false, via: 'download', error: `${error.message} Se descargó el recibo en PDF como respaldo.` }
   }
 }
 
 export async function printThermalTest({ protocol, paperWidth, profileOverride } = {}) {
+  void paperWidth
   const profile = { ...getThermalProfile(), ...(profileOverride || {}) }
   const useProtocol = resolveProtocol(profile, protocol || 'escpos')
-  const payload = buildTestData({ protocol: useProtocol, paperWidth: effectivePaperWidth(profile) })
+  const payload = buildTestData({ protocol: useProtocol, paperWidth: effectivePaperWidth(profile), accentedText: profile.accentedText === true, ticketStyle: profile.ticketStyle || 'classic' })
   try {
-    const result = await routeSend({ bytes: await asBytes(payload), profile, paperWidth })
+    const result = await routeSend({ bytes: await asBytes(payload), profile })
     if (result.ok) return result
     if (result.via === 'config') return result
-    const extension = await downloadData({ number: 'PRUEBA' }, payload, useProtocol)
-    return { ok: false, via: 'download', error: `Sin canal de impresion activo; se descargo la prueba .${extension}.` }
+    const doc = await buildTestReceiptPdf({ paperWidth: effectivePaperWidth(profile) })
+    doc.save('prueba-recibo.pdf')
+    return { ok: false, via: 'download', error: `Sin canal de impresión activo; se descargó la prueba en PDF.` }
   } catch (error) {
-    const extension = await downloadData({ number: 'PRUEBA' }, payload, useProtocol)
-    return { ok: false, via: 'download', error: `${error.message} Se descargo la prueba .${extension} como respaldo.` }
+    const doc = await buildTestReceiptPdf({ paperWidth: effectivePaperWidth(profile) })
+    doc.save('prueba-recibo.pdf')
+    return { ok: false, via: 'download', error: `${error.message} Se descargó la prueba en PDF como respaldo.` }
   }
 }

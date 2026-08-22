@@ -43,6 +43,47 @@ function sanitizeThermalText(value) {
     .trim()
 }
 
+// CP858 (Multilingue Latino I) — tabla Unicode -> byte para ESC/POS con ESC t 19
+// Solo se usa cuando accentedText === true; por defecto (false) se mantiene sanitizeThermalText
+const CP858_UNICODE_TO_BYTE = {
+  'Ç': 0x80, 'ü': 0x81, 'é': 0x82, 'â': 0x83, 'ä': 0x84, 'à': 0x85, 'å': 0x86, 'ç': 0x87,
+  'ê': 0x88, 'ë': 0x89, 'è': 0x8A, 'ï': 0x8B, 'î': 0x8C, 'ì': 0x8D, 'Ä': 0x8E, 'Å': 0x8F,
+  'É': 0x90, 'æ': 0x91, 'Æ': 0x92, 'ô': 0x93, 'ö': 0x94, 'ò': 0x95, 'û': 0x96, 'ù': 0x97,
+  'ÿ': 0x98, 'Ö': 0x99, 'Ü': 0x9A, 'ø': 0x9B, '£': 0x9C, 'Ø': 0x9D, '×': 0x9E, 'ƒ': 0x9F,
+  'á': 0xA0, 'í': 0xA1, 'ó': 0xA2, 'ú': 0xA3, 'ñ': 0xA4, 'Ñ': 0xA5, 'ª': 0xA6, 'º': 0xA7,
+  '¿': 0xA8, '®': 0xA9, '¬': 0xAA, '½': 0xAB, '¼': 0xAC, '¡': 0xAD, '«': 0xAE, '»': 0xAF,
+  'Á': 0xB5, 'Â': 0xB6, 'À': 0xB7, '©': 0xB8, '¢': 0xBD, '¥': 0xBE, 'ã': 0xC6, 'Ã': 0xC7,
+  '¤': 0xCF, 'ð': 0xD0, 'Ð': 0xD1, 'Ê': 0xD2, 'Ë': 0xD3, 'È': 0xD4, '€': 0xD5, 'Í': 0xD6,
+  'Î': 0xD7, 'Ï': 0xD8, 'Ó': 0xE0, 'ß': 0xE1, 'Ô': 0xE2, 'Ò': 0xE3, 'õ': 0xE4, 'Õ': 0xE5,
+  'µ': 0xE6, 'þ': 0xE7, 'Þ': 0xE8, 'Ú': 0xE9, 'Û': 0xEA, 'Ù': 0xEB, 'ý': 0xEC, 'Ý': 0xED,
+  '¯': 0xEE, '´': 0xEF, '±': 0xF1, '¾': 0xF3, '¶': 0xF4, '§': 0xF5, '÷': 0xF6, '¸': 0xF7,
+  '°': 0xF8, '¨': 0xF9, '·': 0xFA, '¹': 0xFB, '³': 0xFC, '²': 0xFD, '■': 0xFE, ' ': 0xFF,
+}
+
+export function encodeCp858(str) {
+  // eslint-disable-next-line no-control-regex
+  const cleaned = String(str || '').replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]/g, '')
+  const bytes = []
+  for (const ch of cleaned) {
+    const code = ch.charCodeAt(0)
+    if (code >= 0x20 && code <= 0x7E) {
+      bytes.push(code)
+    } else if (CP858_UNICODE_TO_BYTE[ch] !== undefined) {
+      bytes.push(CP858_UNICODE_TO_BYTE[ch])
+    } else if (code === 0x0A) {
+      bytes.push(0x0A)
+    } else {
+      bytes.push(0x3F)
+    }
+  }
+  return new Uint8Array(bytes)
+}
+
+function sanitizeForCp858(value) {
+  // eslint-disable-next-line no-control-regex
+  return String(value || '').replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]/g, '').trim()
+}
+
 function zplEscape(value) {
   return sanitizeThermalText(value).replace(/[\^~_\\]/g, (char) => `_${char.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`)
 }
@@ -93,11 +134,12 @@ function fileNamePart(invoice) {
    ESC/POS — impresion termica directa (Epson TM, Bixolon, Star, generic)
    ================================================================= */
 
-function pushQrEscpos(chunks, payload) {
+function pushQrEscpos(chunks, payload, cols = 48) {
   const data = new TextEncoder().encode(sanitizeThermalText(payload))
   const cmd = (...bytes) => chunks.push(new Uint8Array(bytes))
+  const qrModule = cols >= 64 ? 8 : cols >= 48 ? 6 : 4
   cmd(GS, 0x28, 0x6B, 3, 0, 49, 0x41, 50, 0)
-  cmd(GS, 0x28, 0x6B, 3, 0, 49, 0x43, 6, 0)
+  cmd(GS, 0x28, 0x6B, 3, 0, 49, 0x43, qrModule, 0)
   cmd(GS, 0x28, 0x6B, 3, 0, 49, 0x45, 48, 0)
   const length = data.length + 2
   cmd(GS, 0x28, 0x6B, length & 0xFF, (length >> 8) & 0xFF, 49, 0x50)
@@ -105,7 +147,7 @@ function pushQrEscpos(chunks, payload) {
   cmd(GS, 0x28, 0x6B, 3, 0, 49, 0x51, 48, 0)
 }
 
-export function buildInvoiceEscpos({ invoice, company, customer, qrText = '', paperWidth = '80', drawer = false, showBarcode = true, cut = 'full', drawerPulse = 60, logo = true, qrEnabled = true, bold = true, fontScale = 0, lineSpacing = 30, columns = '2' }) {
+export function buildInvoiceEscpos({ invoice, company, customer, qrText = '', paperWidth = '80', drawer = false, showBarcode = true, cut = 'full', drawerPulse = 60, logo = true, qrEnabled = true, bold = true, fontScale = 0, lineSpacing = 30, columns = '2', accentedText = false }) {
   const widthMm = Number(paperWidth) || 80
   const cols = widthMm >= 100 ? 64 : widthMm >= 75 ? 48 : 32
   const chunks = []
@@ -121,31 +163,58 @@ export function buildInvoiceEscpos({ invoice, company, customer, qrText = '', pa
     else if (size === 'xl') cmd(GS, 0x21, 0x22)
     else cmd(GS, 0x21, 0x00)
     if (bold && useBold) cmd(ESC, 0x45, 0x01)
-    chunks.push(new TextEncoder().encode(sanitizeThermalText(str).slice(0, cols * 8) + '\n'))
+    if (accentedText) {
+      const raw = sanitizeForCp858(str).slice(0, cols * 8)
+      const encoded = encodeCp858(raw)
+      const line = new Uint8Array(encoded.length + 1)
+      line.set(encoded, 0)
+      line[encoded.length] = 0x0A
+      chunks.push(line)
+    } else {
+      chunks.push(new TextEncoder().encode(sanitizeThermalText(str).slice(0, cols * 8) + '\n'))
+    }
     cmd(ESC, 0x45, 0x00)
     cmd(GS, 0x21, 0x00)
     cmd(ESC, 0x61, 0x00)
   }
-  const separator = (char = '-') => chunks.push(new TextEncoder().encode(sanitizeThermalText(char).slice(0, cols).padEnd(cols, char || '-').slice(0, cols) + '\n'))
+  const separator = (char = '-') => {
+    if (accentedText) {
+      const raw = sanitizeForCp858(char).slice(0, cols).padEnd(cols, char || '-').slice(0, cols)
+      const encoded = encodeCp858(raw)
+      const line = new Uint8Array(encoded.length + 1)
+      line.set(encoded, 0)
+      line[encoded.length] = 0x0A
+      chunks.push(line)
+    } else {
+      chunks.push(new TextEncoder().encode(sanitizeThermalText(char).slice(0, cols).padEnd(cols, char || '-').slice(0, cols) + '\n'))
+    }
+  }
 
   cmd(ESC, 0x40)
+  if (accentedText) cmd(ESC, 0x74, 19)
   if (lineSpacing) cmd(ESC, 0x33, Math.min(255, Math.max(20, Number(lineSpacing) || 30)))
   if (logo) text(company?.name || 'EMPRESA', { align: 'center', bold: true, size: 'xl', scale: fontScale })
   if (isFiscalInvoice(invoice) && company?.rnc) text(`RNC: ${company.rnc}`, { align: 'center' })
-  if (company?.address) text(company.address, { align: 'center' })
-  if (company?.phone || company?.whatsapp) text([company.phone && `Tel: ${company.phone}`, company.whatsapp && `WA: ${company.whatsapp}`].filter(Boolean).join(' | '), { align: 'center' })
-  if (company?.email) text(company.email, { align: 'center' })
+  if (company?.address) {
+    for (const line of wrapLines(company.address, cols)) text(line, { align: 'center' })
+  }
+  if (company?.phone) text(`Tel: ${company.phone}`, { align: 'center' })
+  if (company?.whatsapp) text(`WA: ${company.whatsapp}`, { align: 'center' })
+  if (company?.email) {
+    for (const line of wrapLines(company.email, cols)) text(line, { align: 'center' })
+  }
   separator()
 
   text('FACTURA', { align: 'center', bold: true, size: 'lg', scale: fontScale })
   text(`No. ${displayInvoiceNumber(invoice)}`, { align: 'center', bold: true })
   const barcodeNumber = displayInvoiceNumber(invoice)
   if (showBarcode && barcodeNumber !== 'BORRADOR') {
-    const barcodeBytes = new TextEncoder().encode(sanitizeThermalText(barcodeNumber))
-    if (barcodeBytes.length) {
-      cmd(GS, 0x68, 100)
-      cmd(GS, 0x48, 64)
-      cmd(GS, 0x6B, 73, barcodeBytes.length)
+     const barcodeBytes = new TextEncoder().encode(sanitizeThermalText(barcodeNumber))
+     if (barcodeBytes.length) {
+       const barcodeHeight = cols >= 64 ? 120 : cols <= 32 ? 80 : 100
+       cmd(GS, 0x68, Math.max(60, barcodeHeight))
+       cmd(GS, 0x48, 2)
+       cmd(GS, 0x6B, 73, barcodeBytes.length)
       chunks.push(barcodeBytes)
     }
   }
@@ -186,9 +255,14 @@ export function buildInvoiceEscpos({ invoice, company, customer, qrText = '', pa
   text(`${'TOTAL'.padEnd(cols - 10)}${currency.format(invoice?.totals?.total || 0)}`, { align: 'right', bold: true, size: 'lg', scale: fontScale })
   separator('=')
 
-  if (qrEnabled && qrText) pushQrEscpos(chunks, qrText)
+  if (qrEnabled && qrText) pushQrEscpos(chunks, qrText, cols)
   if (qrEnabled) text('Escanee el QR para validar', { align: 'center' })
   separator()
+
+  if (invoice?.notesCustomer) {
+    for (const line of wrapLines(invoice.notesCustomer, cols - 2)) text(line)
+    separator()
+  }
 
   if (company?.warrantyText) {
     for (const line of wrapLines(company.warrantyText, cols - 6)) text(line)
@@ -202,6 +276,171 @@ export function buildInvoiceEscpos({ invoice, company, customer, qrText = '', pa
   }
   if (cut !== 'none') endBytes.push(GS, 0x56, cut === 'partial' ? 66 : 65)
   chunks.push(new Uint8Array(endBytes))
+  return new Blob(chunks, { type: 'application/octet-stream' })
+}
+
+export function buildInvoiceEscposModern({ invoice, company, customer, qrText = '', paperWidth = '80', drawer = false, showBarcode = true, cut = 'full', drawerPulse = 60, logo = true, qrEnabled = true, bold = true, fontScale = 0, lineSpacing = 30, columns = '2', accentedText = false }) {
+  const widthMm = Number(paperWidth) || 80
+  const cols = widthMm >= 100 ? 64 : widthMm >= 75 ? 48 : 32
+  const chunks = []
+  const cmd = (...bytes) => chunks.push(new Uint8Array(bytes))
+  const useBold = bold !== false
+  const scaleValues = [0, 0x11, 0x22, 0x33]
+  const text = (str, { align = 'left', bold = false, size = 'normal', scale = 0, underline = false, invert = false } = {}) => {
+    if (invert) cmd(GS, 0x42, 0x01)
+    if (underline) cmd(ESC, 0x2D, 0x01)
+    if (align === 'center') cmd(ESC, 0x61, 0x01)
+    else if (align === 'right') cmd(ESC, 0x61, 0x02)
+    else cmd(ESC, 0x61, 0x00)
+    if (scale > 0) cmd(GS, 0x21, scaleValues[Math.min(scale, 3)] || 0)
+    else if (size === 'lg') cmd(GS, 0x21, 0x11)
+    else if (size === 'xl') cmd(GS, 0x21, 0x22)
+    else cmd(GS, 0x21, 0x00)
+    if (bold && useBold) cmd(ESC, 0x45, 0x01)
+    if (accentedText) {
+      const raw = sanitizeForCp858(str).slice(0, cols * 8)
+      const encoded = encodeCp858(raw)
+      const line = new Uint8Array(encoded.length + 1)
+      line.set(encoded, 0)
+      line[encoded.length] = 0x0A
+      chunks.push(line)
+    } else {
+      chunks.push(new TextEncoder().encode(sanitizeThermalText(str).slice(0, cols * 8) + '\n'))
+    }
+    cmd(ESC, 0x45, 0x00)
+    cmd(GS, 0x21, 0x00)
+    cmd(ESC, 0x61, 0x00)
+    if (underline) cmd(ESC, 0x2D, 0x00)
+    if (invert) cmd(GS, 0x42, 0x00)
+  }
+  const separator = (char = '-') => {
+    const lineChar = char || '-'
+    if (accentedText) {
+      const raw = sanitizeForCp858(lineChar).slice(0, cols).padEnd(cols, lineChar).slice(0, cols)
+      const encoded = encodeCp858(raw)
+      const line = new Uint8Array(encoded.length + 1)
+      line.set(encoded, 0)
+      line[encoded.length] = 0x0A
+      chunks.push(line)
+    } else {
+      chunks.push(new TextEncoder().encode(sanitizeThermalText(lineChar).slice(0, cols).padEnd(cols, lineChar).slice(0, cols) + '\n'))
+    }
+  }
+  const heavySep = () => separator('=')
+  const lightSep = () => separator('-')
+
+  cmd(ESC, 0x40)
+  if (accentedText) cmd(ESC, 0x74, 19)
+  if (lineSpacing) cmd(ESC, 0x33, Math.min(255, Math.max(20, Number(lineSpacing) || 30)))
+
+  // Encabezado empresa moderno - cada dato en línea separada y centrado
+  if (logo) text(company?.name || 'EMPRESA', { align: 'center', bold: true, scale: 3 })
+  if (isFiscalInvoice(invoice) && company?.rnc) text(`RNC: ${company.rnc}`, { align: 'center' })
+  if (company?.address) {
+    for (const line of wrapLines(company.address, cols)) text(line, { align: 'center' })
+  }
+  if (company?.phone) text(`Tel: ${company.phone}`, { align: 'center' })
+  if (company?.whatsapp) text(`WA: ${company.whatsapp}`, { align: 'center' })
+  if (company?.email) {
+    for (const line of wrapLines(company.email, cols)) text(line, { align: 'center' })
+  }
+  heavySep()
+
+  // Bloque FACTURA
+  text('FACTURA', { align: 'center', bold: true, size: 'lg', scale: fontScale })
+  text(`No. ${displayInvoiceNumber(invoice)}`, { align: 'center', bold: true })
+  // Sello estado en video invertido
+  const bal = balanceDue(invoice)
+  const paid = paidAmount(invoice)
+  const isCreditMethod = (invoice.payments || []).some((p) => String(p.method || '').toLowerCase().includes('credito')) || String(invoice.paymentMethod || '').toLowerCase().includes('credito')
+  let sealText = ' PAGADA '
+  if (bal > 0) {
+    if (paid > 0) sealText = ' PENDIENTE '
+    else sealText = isCreditMethod ? ' CREDITO ' : ' PENDIENTE '
+  }
+  text(sealText, { align: 'center', bold: true, invert: true })
+  const barcodeNumber = displayInvoiceNumber(invoice)
+  if (showBarcode && barcodeNumber !== 'BORRADOR') {
+    const barcodeBytes = new TextEncoder().encode(sanitizeThermalText(barcodeNumber))
+    if (barcodeBytes.length) {
+      const barcodeHeight = cols >= 64 ? 120 : cols <= 32 ? 80 : 100
+      cmd(GS, 0x68, Math.max(60, barcodeHeight))
+      cmd(GS, 0x48, 2)
+      cmd(GS, 0x6B, 73, barcodeBytes.length)
+      chunks.push(barcodeBytes)
+    }
+  }
+  if (invoice?.ncf) text(`NCF: ${invoice.ncf}`, { align: 'center' })
+  text(formatDate(invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate), { align: 'center' })
+  lightSep()
+
+  // Bloque cliente con subrayado
+  text('CLIENTE', { align: 'left', underline: true })
+  text(customer?.name || invoice?.customerName || 'Consumidor final', { bold: true })
+  const fiscal = isFiscalInvoice(invoice)
+  const customerDocument = fiscal && customer?.rnc ? `RNC: ${customer.rnc}` : fiscal && customer?.cedula ? `CEDULA: ${customer.cedula}` : ''
+  if (customerDocument) text(customerDocument)
+  if (customer?.phone || customer?.whatsapp) text(`Tel: ${customer.phone || customer.whatsapp}`)
+  if (invoice?.seller) text(`VENDEDOR: ${invoice.seller}`)
+
+  // Productos
+  lightSep()
+  text('PRODUCTOS', { align: 'left', underline: true })
+  const items = invoice?.items || []
+  items.forEach((item, index) => {
+    for (const line of wrapLines(`${index + 1}. ${item.name || 'Producto'}`, cols - 8)) text(line, { bold: true })
+    const qtyPrice = `${item.quantity} x ${currency.format(item.price || 0)}`
+    const lineTotal = currency.format((Number(item.net || 0) || 0) + (Number(item.tax || 0) || 0))
+    if (columns === '3') {
+      text(qtyPrice, { align: 'left' })
+      text(`${'Subtotal'.padEnd(cols - 8)}${lineTotal}`, { align: 'right' })
+    } else {
+      const detailPadded = qtyPrice.padEnd(cols - 14 - lineTotal.length)
+      text(`${detailPadded}${lineTotal}`, { align: 'right' })
+    }
+    const serials = item.serials || (item.serial ? [item.serial] : [])
+    serials.forEach((serial) => text(`SERIAL: ${serial}`, { align: 'right' }))
+  })
+  lightSep()
+
+  if (fiscal && invoice?.totals?.taxableSubtotal) text(`${'SUBTOTAL GRAVADO'.padEnd(cols - 8)}${currency.format(invoice.totals.taxableSubtotal)}`, { align: 'right' })
+  if (fiscal && invoice?.totals?.exemptSubtotal) text(`${'SUBTOTAL EXENTO'.padEnd(cols - 8)}${currency.format(invoice.totals.exemptSubtotal)}`, { align: 'right' })
+  if (fiscal && invoice?.totals?.itbis) text(`${'ITBIS 18%'.padEnd(cols - 8)}${currency.format(invoice.totals.itbis)}`, { align: 'right' })
+  text(`${'PAGADO'.padEnd(cols - 8)}${currency.format(paidAmount(invoice))}`, { align: 'right' })
+  text(`${'PENDIENTE'.padEnd(cols - 8)}${currency.format(balanceDue(invoice))}`, { align: 'right' })
+  text(`${'TOTAL'.padEnd(cols - 10)}${currency.format(invoice?.totals?.total || 0)}`, { align: 'right', bold: true, size: 'lg', scale: fontScale, invert: true })
+  heavySep()
+
+  if (qrEnabled && qrText) {
+    lightSep()
+    pushQrEscpos(chunks, qrText, cols)
+    text('Escanea para verificar tu factura', { align: 'center' })
+    lightSep()
+  } else if (qrEnabled) {
+    text('Escanea para verificar tu factura', { align: 'center' })
+    lightSep()
+  }
+
+  if (invoice?.notesCustomer) {
+    text('NOTA', { align: 'left', underline: true })
+    for (const line of wrapLines(invoice.notesCustomer, cols - 2)) text(line)
+    lightSep()
+  }
+
+  if (company?.warrantyText) {
+    text('GARANTIA', { align: 'left', underline: true })
+    for (const line of wrapLines(company.warrantyText, cols - 6)) text(line)
+    lightSep()
+  }
+  text('¡Gracias por su compra!', { align: 'center', bold: true })
+  text(company?.name || 'EMPRESA', { align: 'center', bold: true })
+  const endBytesModern = [10, 10, 10]
+  if (drawer) {
+    const pulse = Math.min(255, Math.max(10, Number(drawerPulse) || 60))
+    endBytesModern.push(ESC, 0x70, 0x00, pulse, 240)
+  }
+  if (cut !== 'none') endBytesModern.push(GS, 0x56, cut === 'partial' ? 66 : 65)
+  chunks.push(new Uint8Array(endBytesModern))
   return new Blob(chunks, { type: 'application/octet-stream' })
 }
 
@@ -319,8 +558,9 @@ export function downloadThermalFile(invoice, data, mode) {
    Paginas de prueba termica
    ================================================================= */
 
-export function buildThermalTestEscpos({ paperWidth = '80' } = {}) {
-  const cols = paperWidth === '58' ? 32 : 48
+export function buildThermalTestEscpos({ paperWidth = '80', accentedText = false } = {}) {
+  const widthMm = Number(paperWidth) || 80
+  const cols = widthMm >= 100 ? 64 : widthMm >= 75 ? 48 : 32
   const chunks = []
   const cmd = (...bytes) => chunks.push(new Uint8Array(bytes))
   const text = (str, { align = 'left', bold = false, size = 'normal' } = {}) => {
@@ -331,17 +571,30 @@ export function buildThermalTestEscpos({ paperWidth = '80' } = {}) {
     else if (size === 'xl') cmd(GS, 0x21, 0x22)
     else cmd(GS, 0x21, 0x00)
     if (bold) cmd(ESC, 0x45, 0x01)
-    chunks.push(new TextEncoder().encode(sanitizeThermalText(str).slice(0, cols * 8) + '\n'))
+    if (accentedText) {
+      const raw = sanitizeForCp858(str).slice(0, cols * 8)
+      const encoded = encodeCp858(raw)
+      const line = new Uint8Array(encoded.length + 1)
+      line.set(encoded, 0)
+      line[encoded.length] = 0x0A
+      chunks.push(line)
+    } else {
+      chunks.push(new TextEncoder().encode(sanitizeThermalText(str).slice(0, cols * 8) + '\n'))
+    }
     cmd(ESC, 0x45, 0x00)
     cmd(GS, 0x21, 0x00)
     cmd(ESC, 0x61, 0x00)
   }
   cmd(ESC, 0x40)
+  if (accentedText) cmd(ESC, 0x74, 19)
   text('PRUEBA DE IMPRESION TERMICA', { align: 'center', bold: true, size: 'xl' })
   text('Si puede leer este texto, la impresora', { align: 'center' })
   text('esta configurada correctamente.', { align: 'center' })
-  cmd(GS, 0x68, 100)
-  cmd(GS, 0x48, 64)
+  {
+    const barcodeHeight = cols >= 64 ? 120 : cols <= 32 ? 80 : 100
+    cmd(GS, 0x68, Math.max(60, barcodeHeight))
+  }
+  cmd(GS, 0x48, 2)
   const testBarcode = new TextEncoder().encode('PRUEBA-TERMICA-123')
   cmd(GS, 0x6B, 73, testBarcode.length)
   chunks.push(testBarcode)
@@ -350,10 +603,95 @@ export function buildThermalTestEscpos({ paperWidth = '80' } = {}) {
   text('Directa: papel termico sin cinta', { align: 'center' })
   text('Transferencia: usa cinta/tinta', { align: 'center' })
   text('', {})
-  pushQrEscpos(chunks, `PRUEBA-TERMICA-${Date.now()}`)
+  pushQrEscpos(chunks, `PRUEBA-TERMICA-${Date.now()}`, cols)
   text('Escanee el QR', { align: 'center' })
   const endBytes = [10, 10, 10, ESC, 0x70, 0x00, 60, 240, GS, 0x56, 0x00]
   chunks.push(new Uint8Array(endBytes))
+  return new Blob(chunks, { type: 'application/octet-stream' })
+}
+
+export function buildThermalTestEscposModern({ paperWidth = '80', accentedText = false } = {}) {
+  const widthMm = Number(paperWidth) || 80
+  const cols = widthMm >= 100 ? 64 : widthMm >= 75 ? 48 : 32
+  const chunks = []
+  const cmd = (...bytes) => chunks.push(new Uint8Array(bytes))
+  const text = (str, { align = 'left', bold = false, size = 'normal', underline = false, invert = false } = {}) => {
+    if (invert) cmd(GS, 0x42, 0x01)
+    if (underline) cmd(ESC, 0x2D, 0x01)
+    if (align === 'center') cmd(ESC, 0x61, 0x01)
+    else if (align === 'right') cmd(ESC, 0x61, 0x02)
+    else cmd(ESC, 0x61, 0x00)
+    if (size === 'lg') cmd(GS, 0x21, 0x11)
+    else if (size === 'xl') cmd(GS, 0x21, 0x22)
+    else cmd(GS, 0x21, 0x00)
+    if (bold) cmd(ESC, 0x45, 0x01)
+    if (accentedText) {
+      const raw = sanitizeForCp858(str).slice(0, cols * 8)
+      const encoded = encodeCp858(raw)
+      const line = new Uint8Array(encoded.length + 1)
+      line.set(encoded, 0)
+      line[encoded.length] = 0x0A
+      chunks.push(line)
+    } else {
+      chunks.push(new TextEncoder().encode(sanitizeThermalText(str).slice(0, cols * 8) + '\n'))
+    }
+    cmd(ESC, 0x45, 0x00)
+    cmd(GS, 0x21, 0x00)
+    cmd(ESC, 0x61, 0x00)
+    if (underline) cmd(ESC, 0x2D, 0x00)
+    if (invert) cmd(GS, 0x42, 0x00)
+  }
+  const separator = (char = '-') => {
+    if (accentedText) {
+      const raw = sanitizeForCp858(char).slice(0, cols).padEnd(cols, char).slice(0, cols)
+      const encoded = encodeCp858(raw)
+      const line = new Uint8Array(encoded.length + 1)
+      line.set(encoded, 0)
+      line[encoded.length] = 0x0A
+      chunks.push(line)
+    } else {
+      chunks.push(new TextEncoder().encode(sanitizeThermalText(char).slice(0, cols).padEnd(cols, char).slice(0, cols) + '\n'))
+    }
+  }
+  cmd(ESC, 0x40)
+  if (accentedText) cmd(ESC, 0x74, 19)
+  text('PRUEBA MODERNA - PLANTILLA AVANZADA', { align: 'center', bold: true, size: 'xl', underline: true })
+  text('Video invertido y subrayado', { align: 'center' })
+  separator('=')
+  text(' PAGADA ', { align: 'center', bold: true, invert: true })
+  text('Si ve este bloque con fondo negro,', { align: 'center' })
+  text('su impresora SOPORTA video invertido', { align: 'center' })
+  separator('-')
+  text('CLIENTE', { align: 'left', underline: true })
+  text('Cliente de Prueba', { align: 'left', bold: true })
+  text('RNC: 000-00000-0 | Tel: 809-000-0000', { align: 'left' })
+  separator('-')
+  text('PRODUCTOS', { align: 'left', underline: true })
+  text('1. Producto Demo - Prueba Moderna', { align: 'left', bold: true })
+  text('1 x RD$100.00              RD$100.00', { align: 'right' })
+  separator('-')
+  text('SUBTOTAL'.padEnd(cols - 8) + 'RD$100.00', { align: 'right' })
+  text('ITBIS 18%'.padEnd(cols - 8) + 'RD$18.00', { align: 'right' })
+  text('TOTAL'.padEnd(cols - 10) + 'RD$118.00', { align: 'right', bold: true, size: 'lg', invert: true })
+  separator('=')
+  {
+    const barcodeHeight = cols >= 64 ? 120 : cols <= 32 ? 80 : 100
+    cmd(GS, 0x68, Math.max(60, barcodeHeight))
+  }
+  cmd(GS, 0x48, 2)
+  const testBarcode = new TextEncoder().encode('PRUEBA-MODERNA-123')
+  cmd(GS, 0x6B, 73, testBarcode.length)
+  chunks.push(testBarcode)
+  text('', {})
+  text(`Fecha: ${new Date().toLocaleString()}`, { align: 'center' })
+  separator('-')
+  pushQrEscpos(chunks, `PRUEBA-MODERNA-${Date.now()}`, cols)
+  text('Escanee el QR - prueba moderna', { align: 'center' })
+  separator('-')
+  text('¡Gracias por su compra!', { align: 'center', bold: true })
+  text('EMPRESA DEMO', { align: 'center', bold: true })
+  const endBytesModern = [10, 10, 10, ESC, 0x70, 0x00, 60, 240, GS, 0x56, 0x00]
+  chunks.push(new Uint8Array(endBytesModern))
   return new Blob(chunks, { type: 'application/octet-stream' })
 }
 

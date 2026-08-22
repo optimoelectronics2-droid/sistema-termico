@@ -820,6 +820,9 @@ export const useERPStore = create(
           })
 
         const creditAmount = getCreditAmount(invoice)
+        if (creditAmount > 0) {
+          assertCustomerCreditLimit(invoice.customerId, creditAmount, get().customers, get().receivables)
+        }
         const customer = get().customers.find((item) => item.id === invoice.customerId)
         const initialPaid = getNonCreditAmount(invoice)
         const receivable = creditAmount > 0 ? scopeRecord(buildReceivable(invoice, customer, creditAmount, initialPaid), get().activeCompanyId) : null
@@ -944,6 +947,15 @@ export const useERPStore = create(
           updatedAt: now(),
         }
         const nextCredit = getCreditAmount(nextInvoice)
+        if (nextCredit > 0) {
+          if (previous.customerId === nextInvoice.customerId) {
+            const previousBalance = moneyValue(previousReceivable?.balance || 0)
+            const delta = moneyValue(nextCredit - previousBalance)
+            if (delta > 0) assertCustomerCreditLimit(nextInvoice.customerId, delta, get().customers, get().receivables)
+          } else {
+            assertCustomerCreditLimit(nextInvoice.customerId, nextCredit, get().customers, get().receivables)
+          }
+        }
         const previousNonCredit = getNonCreditAmount(previous)
         const nextNonCredit = getNonCreditAmount(nextInvoice)
         const previousReceivable = state.receivables.find((item) => item.invoiceId === invoiceId)
@@ -1222,6 +1234,7 @@ export const useERPStore = create(
         if (!deliveryNote) throw new Error('El conduce no existe.')
         if (deliveryNote.status === 'converted') throw new Error('Este conduce ya fue convertido a factura.')
         const { id: _deliveryNoteId, ...deliveryNoteRest } = deliveryNote
+        void _deliveryNoteId
         const invoice = get().createInvoice({
           ...deliveryNoteRest,
           ...invoiceData,
@@ -1230,7 +1243,17 @@ export const useERPStore = create(
           notesCustomer: invoiceData.notesCustomer || deliveryNote.notesCustomer,
           sourceDeliveryNoteId: deliveryNote.id,
         })
-        set((state) => ({ conduces: state.conduces.map((item) => (item.id === deliveryNoteId ? { ...item, status: 'converted', invoiceId: invoice.id, updatedAt: now() } : item)) }))
+        set((state) => {
+          const updatedReceivables = state.receivables.map((rec) => rec.invoiceId === deliveryNoteId ? { ...rec, invoiceId: invoice.id, invoiceNumber: invoice.number, updatedAt: now() } : rec)
+          const updatedPayments = state.payments.map((pay) => pay.invoiceId === deliveryNoteId ? { ...pay, invoiceId: invoice.id, updatedAt: now() } : pay)
+          const updatedFinancialMovements = (state.financialMovements || []).map((fm) => fm.invoiceId === deliveryNoteId ? { ...fm, invoiceId: invoice.id, documentId: invoice.id, documentNumber: invoice.number, updatedAt: now() } : fm)
+          return {
+            conduces: state.conduces.map((item) => (item.id === deliveryNoteId ? { ...item, status: 'converted', invoiceId: invoice.id, updatedAt: now() } : item)),
+            receivables: updatedReceivables,
+            payments: updatedPayments,
+            financialMovements: updatedFinancialMovements,
+          }
+        })
         get().refreshReportStats()
         get().addAudit('delivery_note.convert', 'Conduce', deliveryNote.number, invoice.number)
         return invoice
@@ -1385,8 +1408,8 @@ export const useERPStore = create(
       },
 
       registerPayment({ invoiceId, amount, method, reference, comment = '', date = today() }) {
+        assertPositiveAmount(amount, 'Monto del pago')
         const paymentAmount = moneyValue(amount)
-        if (paymentAmount <= 0) throw new Error('El monto del pago debe ser mayor que cero.')
         const receivable = get().receivables.find((item) => item.invoiceId === invoiceId)
         if (!receivable) throw new Error('La cuenta por cobrar no existe.')
         const currentBalance = moneyValue(receivable.balance)
@@ -1477,7 +1500,7 @@ export const useERPStore = create(
         const receivable = state.receivables.find((item) => item.invoiceId === previous.invoiceId)
         if (!receivable) throw new Error('La cuenta por cobrar no existe.')
         const nextAmount = 'amount' in updates ? moneyValue(updates.amount) : moneyValue(previous.amount)
-        if (nextAmount <= 0) throw new Error('El monto del abono debe ser mayor que cero.')
+        assertPositiveAmount(nextAmount, 'Monto del abono')
         const delta = moneyValue(nextAmount - moneyValue(previous.amount))
         const currentBalance = moneyValue(receivable.balance)
         if (delta > currentBalance) throw new Error(`El ajuste excede el balance pendiente de RD$${currentBalance.toFixed(2)}.`)
@@ -1648,8 +1671,8 @@ export const useERPStore = create(
       },
 
       createPayable({ supplierId = 'no-supplier', supplierName = '', reference = '', concept = '', amount, date = today(), dueDate = '', method = '' }) {
+        assertPositiveAmount(amount, 'Monto de la cuenta por pagar')
         const value = moneyValue(amount)
-        if (value <= 0) throw new Error('El monto de la cuenta por pagar debe ser mayor que cero.')
         const supplier = get().suppliers.find((item) => item.id === supplierId)
         const payable = scopeRecord({
           id: id('payable'),
@@ -1702,8 +1725,8 @@ export const useERPStore = create(
       },
 
       registerPayablePayment({ payableId, amount, method = 'Efectivo', reference = '', date = today() }) {
+        assertPositiveAmount(amount, 'Monto del pago')
         const paymentAmount = moneyValue(amount)
-        if (paymentAmount <= 0) throw new Error('El monto del pago debe ser mayor que cero.')
         const payable = get().expenses.find((item) => item.id === payableId && item.type === 'account_payable')
         if (!payable) throw new Error('La cuenta por pagar no existe.')
         const balance = moneyValue(payable.balance || payable.amount || payable.total)
@@ -2007,6 +2030,136 @@ export const useERPStore = create(
         return removed
       },
 
+      repairConduceOrphans() {
+        const state = get()
+        try {
+          const conduceToInvoice = new Map()
+          ;(state.conduces || []).forEach((c) => {
+            if (c.status === 'converted' && c.invoiceId && state.invoices.some((inv) => inv.id === c.invoiceId)) {
+              conduceToInvoice.set(c.id, c.invoiceId)
+            }
+          })
+          ;(state.invoices || []).forEach((inv) => {
+            if (inv.sourceDeliveryNoteId && !conduceToInvoice.has(inv.sourceDeliveryNoteId)) {
+              if (state.conduces.some((c) => c.id === inv.sourceDeliveryNoteId) && state.invoices.some((i) => i.id === inv.id)) {
+                conduceToInvoice.set(inv.sourceDeliveryNoteId, inv.id)
+              }
+            }
+          })
+          if (conduceToInvoice.size === 0) return { repaired: { receivables: 0, payments: 0, financialMovements: 0 }, message: 'No hay mapeos conduce->factura para reparar.' }
+
+          let receivablesFixed = 0
+          let paymentsFixed = 0
+          let financialFixed = 0
+
+          const invoiceIds = new Set(state.invoices.map((inv) => inv.id))
+          const receivablesByConduce = {}
+          ;(state.receivables || []).forEach((rec) => {
+            if (conduceToInvoice.has(rec.invoiceId) && !invoiceIds.has(rec.invoiceId)) {
+              const target = conduceToInvoice.get(rec.invoiceId)
+              const countForConduce = (state.receivables || []).filter((r) => r.invoiceId === rec.invoiceId).length
+              const alreadyExistsForTarget = (state.receivables || []).some((r) => r.invoiceId === target)
+              if (countForConduce === 1 && !alreadyExistsForTarget) {
+                if (!receivablesByConduce[rec.invoiceId]) receivablesByConduce[rec.invoiceId] = target
+              }
+            }
+          })
+
+          const paymentsByConduce = {}
+          ;(state.payments || []).forEach((pay) => {
+            if (conduceToInvoice.has(pay.invoiceId) && !invoiceIds.has(pay.invoiceId)) {
+              const target = conduceToInvoice.get(pay.invoiceId)
+              const countForConduce = (state.payments || []).filter((p) => p.invoiceId === pay.invoiceId).length
+              if (countForConduce >= 1) {
+                if (!paymentsByConduce[pay.invoiceId]) paymentsByConduce[pay.invoiceId] = target
+              }
+            }
+          })
+
+          const financialsByConduce = {}
+          ;(state.financialMovements || []).forEach((fm) => {
+            if (fm.invoiceId && conduceToInvoice.has(fm.invoiceId) && !invoiceIds.has(fm.invoiceId)) {
+              const target = conduceToInvoice.get(fm.invoiceId)
+              if (!financialsByConduce[fm.invoiceId]) financialsByConduce[fm.invoiceId] = target
+            }
+          })
+
+          if (Object.keys(receivablesByConduce).length === 0 && Object.keys(paymentsByConduce).length === 0 && Object.keys(financialsByConduce).length === 0) {
+            return { repaired: { receivables: 0, payments: 0, financialMovements: 0 }, message: 'No hay huérfanos reparables sin ambigüedad.' }
+          }
+
+          let nextReceivables = state.receivables
+          let nextPayments = state.payments
+          let nextFinancials = state.financialMovements || []
+
+          if (Object.keys(receivablesByConduce).length > 0) {
+            nextReceivables = state.receivables.map((rec) => {
+              const target = receivablesByConduce[rec.invoiceId]
+              if (target) {
+                receivablesFixed += 1
+                const invoice = state.invoices.find((inv) => inv.id === target)
+                return { ...rec, invoiceId: target, invoiceNumber: invoice?.number || rec.invoiceNumber, updatedAt: now() }
+              }
+              return rec
+            })
+          }
+          if (Object.keys(paymentsByConduce).length > 0) {
+            nextPayments = state.payments.map((pay) => {
+              const target = paymentsByConduce[pay.invoiceId]
+              if (target) {
+                paymentsFixed += 1
+                return { ...pay, invoiceId: target, updatedAt: now() }
+              }
+              return pay
+            })
+            // también actualizar pagos embebidos dentro de receivables
+            nextReceivables = nextReceivables.map((rec) => {
+              if (!rec.payments || rec.payments.length === 0) return rec
+              let changed = false
+              const updatedPayments = rec.payments.map((p) => {
+                const target = p.invoiceId && paymentsByConduce[p.invoiceId] ? paymentsByConduce[p.invoiceId] : (p.invoiceId && conduceToInvoice.has(p.invoiceId) ? conduceToInvoice.get(p.invoiceId) : null)
+                if (target && p.invoiceId !== target) { changed = true; return { ...p, invoiceId: target } }
+                return p
+              })
+              return changed ? { ...rec, payments: updatedPayments } : rec
+            })
+          }
+          if (Object.keys(financialsByConduce).length > 0) {
+            nextFinancials = (state.financialMovements || []).map((fm) => {
+              const target = financialsByConduce[fm.invoiceId]
+              if (target) {
+                financialFixed += 1
+                const invoice = state.invoices.find((inv) => inv.id === target)
+                return { ...fm, invoiceId: target, documentId: target, documentNumber: invoice?.number || fm.documentNumber, updatedAt: now() }
+              }
+              return fm
+            })
+          }
+
+          if (receivablesFixed > 0 || paymentsFixed > 0 || financialFixed > 0) {
+            set({ receivables: nextReceivables, payments: nextPayments, financialMovements: nextFinancials })
+            try {
+              const persistKey = 'trifusion-erp-state-v2'
+              const raw = localStorage.getItem(persistKey)
+              if (raw) {
+                const parsed = JSON.parse(raw)
+                const fresh = get()
+                parsed.state.receivables = fresh.receivables
+                parsed.state.payments = fresh.payments
+                parsed.state.financialMovements = fresh.financialMovements
+                localStorage.setItem(persistKey, JSON.stringify(parsed))
+              }
+            } catch (e) { console.error('Persist repair conduce orphans error', e) }
+            get().addAudit('data.repair_conduce_orphans', 'Sistema', null, { receivablesFixed, paymentsFixed, financialFixed })
+          }
+
+          return { repaired: { receivables: receivablesFixed, payments: paymentsFixed, financialMovements: financialFixed }, message: receivablesFixed + paymentsFixed + financialFixed > 0 ? `Reparados ${receivablesFixed} CxC, ${paymentsFixed} pagos y ${financialFixed} movimientos huérfanos.` : 'No se requirió reparación.' }
+        } catch (e) {
+          console.error('[ERP] Error en repairConduceOrphans:', e)
+          return { repaired: { receivables: 0, payments: 0, financialMovements: 0 }, message: 'Error en reparación automática.' }
+        }
+      },
+
       recalculateFinancialFields() {
         const state = get()
         var fixed = { invoices: 0, receivables: 0, customers: 0 }
@@ -2212,7 +2365,19 @@ export const useERPStore = create(
               var report = state.verifyDataIntegrity()
               var total = (report.invalidStatusInvoices||0)+(report.orphanReceivables||0)+(report.orphanPayments||0)+(report.orphanInventoryMovements||0)+(report.orphanFinancialMovements||0)+(report.orphanCreditNotes||0)
               if (total > 0) {
-                console.warn('[ERP] Inconsistencias detectadas al cargar, NO se eliminan datos automaticamente:', report)
+                try {
+                  if (state.repairConduceOrphans) {
+                    var repairResult = state.repairConduceOrphans()
+                    if ((repairResult.repaired.receivables + repairResult.repaired.payments + repairResult.repaired.financialMovements) > 0) {
+                      console.info('[ERP] Reparación automática de huérfanos conduce->factura:', repairResult)
+                      report = state.verifyDataIntegrity()
+                      total = (report.invalidStatusInvoices||0)+(report.orphanReceivables||0)+(report.orphanPayments||0)+(report.orphanInventoryMovements||0)+(report.orphanFinancialMovements||0)+(report.orphanCreditNotes||0)
+                    }
+                  }
+                } catch (e) { console.error('[ERP] Error en reparación automática de huérfanos:', e) }
+                if (total > 0) {
+                  console.warn('[ERP] Inconsistencias detectadas al cargar, NO se eliminan datos automaticamente:', report)
+                }
               }
               state.recalculateFinancialFields()
               state.refreshReportStats()

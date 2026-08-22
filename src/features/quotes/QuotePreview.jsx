@@ -10,7 +10,7 @@ export function QuotePreview({ quote, company, customer }) {
     <div id="quote-preview" className="bg-white p-8 text-black" style={{ fontFamily: 'Arial, Helvetica, sans-serif', maxWidth: '800px', margin: '0 auto' }}>
       <div className="mb-6 flex items-start justify-between border-b border-gray-300 pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{comp.legalName || comp.name || 'Empresa'}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{comp.name || comp.legalName || 'Empresa'}</h1>
           <p className="mt-1 text-sm text-gray-600">{comp.address || ''}</p>
           <p className="text-sm text-gray-600">{comp.rnc ? `RNC: ${comp.rnc}` : ''}{comp.phone ? ` · Tel: ${comp.phone}` : ''}</p>
           {comp.email ? <p className="text-sm text-gray-600">{comp.email}</p> : null}

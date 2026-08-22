@@ -17,6 +17,9 @@
  *   (requiere configuración específica del entorno)
  */
 
+import { createRequire } from 'node:module'
+const require = createRequire(import.meta.url)
+
 const VERIFY = {
   companies: new Map(),
   snapshots: [],

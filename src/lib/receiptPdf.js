@@ -1,0 +1,298 @@
+import jsPDF from 'jspdf'
+import QRCode from 'qrcode'
+
+const money = new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP' })
+const num = (v) => money.format(v || 0)
+
+function sanitize(v) {
+  return String(v || '').trim()
+}
+
+function displayInvoiceNumber(invoice) {
+  const n = String(invoice?.number || '')
+  if (!n || n === 'SIN NCF') return 'BORRADOR'
+  if (n.startsWith('SIN-NCF-')) return n.replace('SIN-NCF-', 'FAC-')
+  return n
+}
+
+function isFiscalInvoice(invoice) {
+  return Boolean(invoice?.ncf && invoice?.ncfType !== 'NO_FISCAL')
+}
+
+function paidAmount(invoice) {
+  if (invoice?.paidAmount !== undefined) return Number(invoice.paidAmount || 0)
+  return (invoice?.payments || []).filter((p) => p.method !== 'Credito').reduce((s, p) => s + Number(p.amount || 0), 0)
+}
+
+function balanceDue(invoice) {
+  if (invoice?.balanceDue !== undefined) return Number(invoice.balanceDue || 0)
+  return Math.max(Number(invoice?.totals?.total || 0) - paidAmount(invoice), 0)
+}
+
+function fileNamePart(invoice) {
+  return String(displayInvoiceNumber(invoice)).replace(/[^a-zA-Z0-9-_]/g, '_') || 'factura'
+}
+
+export async function buildReceiptPdf({ invoice, company, customer, qrText = '', paperWidth = '80' } = {}) {
+  const width = Math.max(40, Math.min(150, Number(paperWidth) || 80))
+  const items = invoice?.items || []
+  const hasQr = Boolean(qrText)
+  const hasWarranty = Boolean(company?.warrantyText)
+  // Estimate height: base 70 + header 25 + factura 30 + cliente 25 + productos 12*items + totales 40 + qr 40 + warranty 20 + footer 20
+  const base = 70
+  const itemsHeight = items.length * 12 + 10
+  const qrHeight = hasQr ? 45 : 0
+  const warrantyHeight = hasWarranty ? 18 : 0
+  const estimated = base + itemsHeight + qrHeight + warrantyHeight + 60
+  const height = Math.max(120, Math.min(600, estimated))
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [width, height], compress: true })
+  const M = 4
+  const contentW = width - M * 2
+  let y = 6
+
+  const COLORS = {
+    primary: [15, 23, 42],
+    accent: [37, 99, 235],
+    muted: [100, 116, 139],
+    light: [241, 245, 249],
+    dark: [15, 23, 42],
+  }
+
+  function textCenter(str, size = 8, bold = false, color = COLORS.dark) {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal')
+    doc.setFontSize(size)
+    doc.setTextColor(...color)
+    const lines = doc.splitTextToSize(String(str || ''), contentW)
+    lines.forEach((line) => {
+      doc.text(line, width / 2, y, { align: 'center' })
+      y += size * 0.45
+    })
+  }
+
+  function textLeft(str, size = 8, bold = false, color = COLORS.dark) {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal')
+    doc.setFontSize(size)
+    doc.setTextColor(...color)
+    const lines = doc.splitTextToSize(String(str || ''), contentW)
+    lines.forEach((line) => {
+      doc.text(line, M, y)
+      y += size * 0.45
+    })
+  }
+
+  function textRight(str, size = 8, bold = false, color = COLORS.dark) {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal')
+    doc.setFontSize(size)
+    doc.setTextColor(...color)
+    const line = String(str || '')
+    doc.text(line, width - M, y, { align: 'right' })
+    y += size * 0.45
+  }
+
+  function drawUnderline() {
+    doc.setDrawColor(...COLORS.accent)
+    doc.setLineWidth(0.3)
+    doc.line(M, y, width - M, y)
+    y += 3
+  }
+
+  function drawHeavyLine() {
+    doc.setDrawColor(...COLORS.primary)
+    doc.setLineWidth(0.5)
+    doc.line(M, y, width - M, y)
+    y += 3.5
+  }
+
+  function drawLightLine() {
+    doc.setDrawColor(...COLORS.muted)
+    doc.setLineWidth(0.2)
+    doc.line(M, y, width - M, y)
+    y += 3
+  }
+
+  function seal(textStr, color = COLORS.primary) {
+    const h = 8
+    const padY = 2
+    doc.setFillColor(...color)
+    doc.rect(M, y - 4, contentW, h, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.setTextColor(255, 255, 255)
+    doc.text(String(textStr).toUpperCase(), width / 2, y + 1.5, { align: 'center' })
+    y += h + padY
+  }
+
+  // Header
+  textCenter(sanitize(company?.name) || 'EMPRESA', 13, true, COLORS.primary)
+  y += 1
+  if (isFiscalInvoice(invoice) && company?.rnc) textCenter(`RNC: ${company.rnc}`, 6, false, COLORS.muted)
+  const headerInfos = []
+  if (company?.address) headerInfos.push(company.address)
+  const contactParts = [company?.phone && `Tel: ${company.phone}`, company?.whatsapp && `WA: ${company.whatsapp}`].filter(Boolean)
+  if (contactParts.length) headerInfos.push(contactParts.join(' | '))
+  if (company?.email) headerInfos.push(company.email)
+  if (headerInfos.length) {
+    const headerLine = headerInfos.join(' | ')
+    const lines = doc.splitTextToSize(headerLine, contentW)
+    lines.forEach((l) => textCenter(l, 6, false, COLORS.muted))
+  }
+  y += 2
+  drawHeavyLine()
+
+  // FACTURA
+  textCenter('FACTURA', 11, true, COLORS.primary)
+  textCenter(`No. ${displayInvoiceNumber(invoice)}`, 9, true, COLORS.dark)
+  const bal = balanceDue(invoice)
+  const paid = paidAmount(invoice)
+  const isCreditMethod = (invoice?.payments || []).some((p) => String(p.method || '').toLowerCase().includes('credito')) || String(invoice?.paymentMethod || '').toLowerCase().includes('credito')
+  let sealText = 'PAGADA'
+  if (bal > 0) {
+    if (paid > 0) sealText = 'PENDIENTE'
+    else sealText = isCreditMethod ? 'CREDITO' : 'PENDIENTE'
+  }
+  y += 1
+  seal(` ${sealText} `, COLORS.primary)
+  if (invoice?.ncf) textCenter(`NCF: ${invoice.ncf}`, 7, false, COLORS.dark)
+  const dateStr = (() => {
+    const d = invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate
+    try { return d ? new Date(d).toLocaleDateString('es-DO') : new Date().toLocaleDateString('es-DO') } catch { return '' }
+  })()
+  textCenter(dateStr, 7, false, COLORS.muted)
+  drawLightLine()
+
+  // Cliente
+  textLeft('CLIENTE', 7, true, COLORS.primary)
+  drawUnderline()
+  textLeft(sanitize(customer?.name || invoice?.customerName || 'Consumidor final'), 8, true, COLORS.dark)
+  const fiscal = isFiscalInvoice(invoice)
+  const custDoc = fiscal && customer?.rnc ? `RNC: ${customer.rnc}` : fiscal && customer?.cedula ? `CEDULA: ${customer.cedula}` : ''
+  if (custDoc) textLeft(custDoc, 7, false, COLORS.muted)
+  if (customer?.phone || customer?.whatsapp) textLeft(`Tel: ${customer.phone || customer.whatsapp}`, 7, false, COLORS.muted)
+  if (invoice?.seller) textLeft(`VENDEDOR: ${invoice.seller}`, 7, false, COLORS.muted)
+  y += 1
+  drawLightLine()
+
+  // Productos
+  textLeft('PRODUCTOS', 7, true, COLORS.primary)
+  drawUnderline()
+  items.forEach((item, idx) => {
+    const name = `${idx + 1}. ${item.name || 'Producto'}`
+    textLeft(name, 7, true, COLORS.dark)
+    const qtyPrice = `${item.quantity} x ${num(item.price || 0)}`
+    const lineTotal = num((Number(item.net || 0) || 0) + (Number(item.tax || 0) || 0))
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    doc.setTextColor(...COLORS.dark)
+    doc.text(qtyPrice, M, y)
+    doc.text(lineTotal, width - M, y, { align: 'right' })
+    y += 3.5
+    const serials = item.serials || (item.serial ? [item.serial] : [])
+    serials.forEach((serial) => {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6)
+      doc.setTextColor(...COLORS.muted)
+      doc.text(`SERIAL: ${serial}`, width - M, y, { align: 'right' })
+      y += 3
+    })
+  })
+  drawLightLine()
+
+  // Totales
+  const fiscalTotals = fiscal
+  if (fiscalTotals && invoice?.totals?.taxableSubtotal) {
+    textRight(`SUBTOTAL GRAVADO  ${num(invoice.totals.taxableSubtotal)}`, 7, false, COLORS.dark)
+  }
+  if (fiscalTotals && invoice?.totals?.exemptSubtotal) {
+    textRight(`SUBTOTAL EXENTO  ${num(invoice.totals.exemptSubtotal)}`, 7, false, COLORS.dark)
+  }
+  if (fiscalTotals && invoice?.totals?.itbis) {
+    textRight(`ITBIS 18%  ${num(invoice.totals.itbis)}`, 7, false, COLORS.dark)
+  }
+  textRight(`PAGADO  ${num(paidAmount(invoice))}`, 7, false, COLORS.dark)
+  textRight(`PENDIENTE  ${num(balanceDue(invoice))}`, 7, false, COLORS.dark)
+  y += 1
+  // TOTAL invertido
+  const totalStr = `TOTAL  ${num(invoice?.totals?.total || 0)}`
+  seal(totalStr, COLORS.accent)
+  drawHeavyLine()
+
+  // QR
+  if (qrText) {
+    drawLightLine()
+    try {
+      const dataUrl = await QRCode.toDataURL(qrText, { width: 200, margin: 1, errorCorrectionLevel: 'M' })
+      const qrSize = Math.min(28, contentW * 0.6)
+      const x = (width - qrSize) / 2
+      doc.addImage(dataUrl, 'PNG', x, y, qrSize, qrSize)
+      y += qrSize + 3
+    } catch { /* QR generation failed - continue without image */ }
+    textCenter('Escanea para verificar tu factura', 6, false, COLORS.muted)
+    drawLightLine()
+  }
+
+  // Nota cliente
+  if (invoice?.notesCustomer) {
+    textLeft('NOTA', 7, true, COLORS.primary)
+    drawUnderline()
+    const lines = doc.splitTextToSize(String(invoice.notesCustomer), contentW)
+    lines.forEach((l) => {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6.5)
+      doc.setTextColor(...COLORS.dark)
+      doc.text(l, M, y)
+      y += 3
+    })
+    drawLightLine()
+  }
+
+  // Garantía
+  if (company?.warrantyText) {
+    textLeft('GARANTIA', 7, true, COLORS.primary)
+    drawUnderline()
+    const lines = doc.splitTextToSize(String(company.warrantyText), contentW)
+    lines.forEach((l) => {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6.5)
+      doc.setTextColor(...COLORS.muted)
+      doc.text(l, M, y)
+      y += 3
+    })
+    drawLightLine()
+  }
+
+  // Pie
+  y += 2
+  textCenter('¡Gracias por su compra!', 8, true, COLORS.primary)
+  textCenter(sanitize(company?.name) || 'EMPRESA', 8, true, COLORS.dark)
+  if (company?.phone || company?.whatsapp || company?.email) {
+    const footContact = [company.phone && `Tel: ${company.phone}`, company.whatsapp && `WA: ${company.whatsapp}`, company.email].filter(Boolean).join(' | ')
+    if (footContact) textCenter(footContact, 6, false, COLORS.muted)
+  }
+
+  // Ajustar altura si sobra mucho? jsPDF already has fixed height, we leave blank at bottom (paper feed)
+  return doc
+}
+
+export async function downloadReceiptPdf(invoice, company, customer, qrText, paperWidth) {
+  const doc = await buildReceiptPdf({ invoice, company, customer, qrText, paperWidth })
+  const name = `factura-${fileNamePart(invoice)}.pdf`
+  doc.save(name)
+  return name
+}
+
+export async function buildTestReceiptPdf({ paperWidth = '80' } = {}) {
+  const fakeInvoice = {
+    number: 'PRUEBA-001',
+    ncf: 'E310000000001',
+    ncfType: 'E31',
+    issuedAt: new Date().toISOString(),
+    totals: { total: 118, taxableSubtotal: 100, exemptSubtotal: 0, itbis: 18, subtotal: 100 },
+    items: [{ name: 'Producto Demo - Prueba PDF', quantity: 1, price: 100, net: 100, tax: 18 }],
+    payments: [{ method: 'Efectivo', amount: 118 }],
+    seller: 'Sistema',
+  }
+  const fakeCompany = { name: 'Empresa Demo', rnc: '000-00000-0', address: 'Calle Demo 123', phone: '809-000-0000', email: 'demo@empresa.do', warrantyText: 'Garantía de prueba 30 días.' }
+  const fakeCustomer = { name: 'Cliente Prueba', rnc: '000-00000-0', phone: '809-111-2222' }
+  return buildReceiptPdf({ invoice: fakeInvoice, company: fakeCompany, customer: fakeCustomer, qrText: `PRUEBA-PDF-${Date.now()}`, paperWidth })
+}

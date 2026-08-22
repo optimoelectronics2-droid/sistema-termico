@@ -88,9 +88,7 @@ export function buildHistoricalReport({ invoices = [], creditNotes = [], product
     if (validity !== 'valid') { stats.invalidDocuments.push(documentIssue(invoice, validity)); return }
 
     stats.source.validInvoiceCount += 1
-    const refundAmount = refundsByInvoice.get(invoice.id) || 0
-    const effectivePaid = Math.max(0, toNumber(invoice.paidAmount || 0) - refundAmount)
-    const metric = invoiceMetric(invoice, 1, effectivePaid)
+    const metric = invoiceMetric(invoice, 1)
     const paymentRatio = metric.paymentRatio
     addToFiscalBucket(fiscalBuckets, invoice, metric)
     addFiscalGroupRows(fiscalGroups, invoice)
@@ -103,7 +101,6 @@ export function buildHistoricalReport({ invoices = [], creditNotes = [], product
 
     const isCredit = (invoice.payments || []).some((p) => isCreditMethod(p.method))
       || isCreditMethod(invoice.paymentMethod)
-    const invoiceTotal = Number(invoice.totals?.total || 0)
     if (isCredit) {
       creditInvoiceIds.add(invoice.id)
       creditInvoiceData.push(invoice)
@@ -151,7 +148,7 @@ export function buildHistoricalReport({ invoices = [], creditNotes = [], product
   stats.taxSummary = buildTaxSummarySection(stats.fiscalBuckets, historical)
   stats.productAnalysis = buildProductAnalysisSection(productsMap, products, allInvoices)
   stats.customerAnalysis = buildCustomerAnalysisSection(customersMap, allInvoices)
-  stats.paymentMethodAnalysis = buildPaymentMethodAnalysisSection(paymentsMap, allInvoices)
+  stats.paymentMethodAnalysis = buildPaymentMethodAnalysisSection(paymentsMap)
   stats.comparativeAnalysis = buildComparativeAnalysisSection(stats)
 
   return stats
@@ -327,7 +324,10 @@ function buildAccountsReceivableSection(creditInvoices, allInvoices, refundsByIn
   const now = new Date()
   const buckets = { '0-30': [], '31-60': [], '61-90': [], '90+': [] }
   const effectivePending = (inv) => {
-    return pendingAmt(inv)
+    const refunded = refundsByInvoice.get(inv.id) || 0
+    if (inv.balanceDue != null) return Math.max(0, Number(inv.balanceDue) - refunded)
+    const effectivePaid = Math.max(0, toNumber(inv.paidAmount || 0) - refunded)
+    return pendingAmt(inv, effectivePaid)
   }
   const validWithBalance = creditInvoices.filter((inv) => classifyInvoice(inv) === 'valid' && effectivePending(inv) > 0)
 
@@ -516,7 +516,7 @@ function buildCustomerAnalysisSection(customersMap, allInvoices) {
 /* ================================================================
    SECCION 10 - METODOS DE PAGO
    ================================================================ */
-function buildPaymentMethodAnalysisSection(paymentsMap, allInvoices) {
+function buildPaymentMethodAnalysisSection(paymentsMap) {
   const totalAmount = [...paymentsMap.values()].reduce((s, p) => s + p.amount, 0)
   const methods = [...paymentsMap.values()].map((item) => ({
     method: item.method,
@@ -613,7 +613,7 @@ function isCreditMethod(method = '') {
   return String(method || '').toLowerCase().includes('credito') || String(method || '').toLowerCase().includes('crédito')
 }
 
-function invoiceMetric(document, sign = 1, effectivePaid) {
+function invoiceMetric(document, sign = 1) {
   const totals = document?.totals || {}
   const subtotal = sign * roundMoney(totals.subtotal ?? totals.total ?? document.total ?? 0)
   const taxableSubtotal = sign * roundMoney(totals.taxableSubtotal || 0)

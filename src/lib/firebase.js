@@ -23,4 +23,14 @@ export const db = initializeFirestore(app, {
     tabManager: persistentMultipleTabManager(),
   }),
 })
+
+// Silenciar warnings esperados de Firestore multi-tab (primary lease) que no afectan funcionalidad
+if (typeof window !== 'undefined') {
+  const _origError = console.error.bind(console)
+  console.error = (...args) => {
+    const first = typeof args[0] === 'string' ? args[0] : ''
+    if (first.includes('Failed to obtain primary lease')) return
+    _origError(...args)
+  }
+}
 export const storage = getStorage(app)

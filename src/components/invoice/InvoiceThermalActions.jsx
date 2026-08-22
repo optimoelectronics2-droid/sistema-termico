@@ -17,6 +17,7 @@ import {
   buildInvoiceCpcl,
   buildInvoiceEpl,
   buildInvoiceEscpos,
+  buildInvoiceEscposModern,
   buildInvoiceTspl,
   buildInvoiceZpl,
   downloadThermalFile,
@@ -24,6 +25,7 @@ import {
   THERMAL_PROTOCOLS,
   thermalModeFromSettings,
 } from '../../lib/invoiceThermal'
+import { downloadReceiptPdf } from '../../lib/receiptPdf'
 
 const INVOICE_BUILDERS = { escpos: buildInvoiceEscpos, zpl: buildInvoiceZpl, epl: buildInvoiceEpl, tspl: buildInvoiceTspl, cpcl: buildInvoiceCpcl }
 const PAPER_WIDTHS = [
@@ -155,6 +157,8 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
       fontScale: profile.fontScale,
       lineSpacing: profile.lineSpacing,
       columns: profile.columns,
+      accentedText: profile.accentedText === true,
+      ticketStyle: profile.ticketStyle || 'classic',
       manualProtocol: manual,
       ...extra,
     }
@@ -273,11 +277,18 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
     }
   }
 
-  function handleDownload() {
-    const payload = { invoice, company, customer, qrText, paperWidth: profile.paperWidth === 'custom' ? String(profile.customWidthMm || 80) : profile.paperWidth }
-    const builder = INVOICE_BUILDERS[profile.protocol] || buildInvoiceEscpos
+  async function handleDownload() {
+    const paperWidth = profile.paperWidth === 'custom' ? String(profile.customWidthMm || 80) : profile.paperWidth
+    await downloadReceiptPdf(invoice, company, customer, qrText, paperWidth)
+    toast.success(`Recibo PDF (${paperWidth}mm) descargado — formato moderno listo para reimprimir.`)
+  }
+
+  function handleDownloadRaw() {
+    const payload = { invoice, company, customer, qrText, paperWidth: profile.paperWidth === 'custom' ? String(profile.customWidthMm || 80) : profile.paperWidth, accentedText: profile.accentedText === true, ticketStyle: profile.ticketStyle || 'classic' }
+    const isModern = (profile.ticketStyle || 'classic') === 'modern' && (profile.protocol || 'escpos') === 'escpos'
+    const builder = isModern ? buildInvoiceEscposModern : (INVOICE_BUILDERS[profile.protocol] || buildInvoiceEscpos)
     downloadThermalFile(invoice, builder(payload), profile.protocol || 'escpos')
-    toast.success(`Archivo ${String(profile.protocol || 'escpos').toUpperCase()} descargado para ${activeProtocol.label}.`)
+    toast.success(`Archivo crudo ${String(profile.protocol || 'escpos').toUpperCase()} descargado para ${activeProtocol.label}.`)
   }
 
   function handleResetAuto() {
@@ -313,7 +324,7 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
       <Button variant="ghost" icon={Settings2} onClick={() => setShowModal(true)} disabled={busy}>Configuracion</Button>
       <Button variant="primary" icon={Printer} onClick={handlePrint} disabled={busy}>Imprimir ahora</Button>
       <Button variant="ghost" icon={TestTube2} onClick={handleTest} disabled={busy}>Prueba</Button>
-      <Button variant="ghost" icon={Download} onClick={handleDownload} disabled={busy}>Descargar</Button>
+      <Button variant="ghost" icon={Download} onClick={handleDownload} disabled={busy}>Descargar PDF</Button>
       <span className="w-full text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
         {manual
           ? `Configuracion manual: ${activeProtocol.label} · ${activeConnection.label}${activeConnection.id === 'serial' ? ` · ${profile.baudRate || 9600} baudios` : ''} · ${paperWidthId === 'custom' ? `${profile.customWidthMm || 80} mm` : paperWidthId} mm`
@@ -394,7 +405,7 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
                 {paperWidthId === 'custom' && (
                   <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
                     <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Ancho personalizado (mm)</span>
-                    <input type="number" min="40" max="150" value={profile.customWidthMm || 80} onChange={(event) => updateProfile({ customWidthMm: Number(event.target.value) || 80 })} className="input-dark max-w-24 py-1 text-xs" aria-label="ancho-personalizado" />
+                    <input id="thermal-custom-width" name="thermal-custom-width" type="number" min="40" max="150" value={profile.customWidthMm || 80} onChange={(event) => updateProfile({ customWidthMm: Number(event.target.value) || 80 })} className="input-dark max-w-24 py-1 text-xs" aria-label="ancho-personalizado" autoComplete="off" />
                   </div>
                 )}
               </Section>
@@ -411,21 +422,27 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
               </Section>
 
               <Section icon={PenLine} title="Diseno del ticket">
+                <div className="space-y-2">
+                  <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Estilo de ticket</p>
+                  <Segmented options={[{ id: 'classic', label: 'Clásico' }, { id: 'modern', label: 'Moderno' }]} value={profile.ticketStyle || 'classic'} onChange={(id) => updateProfile({ ticketStyle: id })} columns={2} />
+                  <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>La plantilla moderna usa video invertido y subrayado; pruebe con 'Probar impresion' antes de usarla en facturas reales, ya que no todas las impresoras termicas soportan estos efectos de forma identica.</p>
+                </div>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <Switch label="Logo / nombre de empresa" sub="Cabecera en grande" checked={profile.logo !== false} onChange={(logo) => updateProfile({ logo })} />
                   <Switch label="Codigo QR" sub="Validacion de la factura" checked={profile.qrEnabled !== false} onChange={(qrEnabled) => updateProfile({ qrEnabled })} />
                   <Switch label="Codigo de barras" sub="Del numero de factura" checked={profile.barcode !== false} onChange={(barcode) => updateProfile({ barcode })} />
                   <Switch label="Texto en negrita" sub="Titulos y totales enfatizados" checked={profile.bold !== false} onChange={(bold) => updateProfile({ bold })} />
                 </div>
+                <Switch label="Texto acentuado (á, é, ñ) — experimental" sub="Requiere que su impresora soporte la pagina de codigos CP858 (Multilingue Latino I); pruebe con 'Probar impresion' antes de usarlo en facturas reales." checked={profile.accentedText === true} onChange={(accentedText) => updateProfile({ accentedText })} />
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
                   <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Tamano de fuente (titulos y total)</span>
-                  <select value={Number(profile.fontScale) || 0} onChange={(event) => updateProfile({ fontScale: Number(event.target.value) })} className="input-dark max-w-36 py-1 text-xs" aria-label="tamano-fuente">
+                  <select id="thermal-font-scale" name="thermal-font-scale" value={Number(profile.fontScale) || 0} onChange={(event) => updateProfile({ fontScale: Number(event.target.value) })} className="input-dark max-w-36 py-1 text-xs" aria-label="tamano-fuente" autoComplete="off">
                     {FONT_SCALES.map((scale) => <option key={scale.id} value={scale.id}>{scale.label}</option>)}
                   </select>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
                   <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Interlineado: <span className="font-bold" style={{ color: 'var(--blue-bright)' }}>{profile.lineSpacing || 30} / 60</span></span>
-                  <input type="range" min="20" max="60" value={profile.lineSpacing || 30} onChange={(event) => updateProfile({ lineSpacing: Number(event.target.value) })} className="w-36 accent-blue-500" aria-label="interlineado" />
+                  <input id="thermal-line-spacing" name="thermal-line-spacing" type="range" min="20" max="60" value={profile.lineSpacing || 30} onChange={(event) => updateProfile({ lineSpacing: Number(event.target.value) })} className="w-36 accent-blue-500" aria-label="interlineado" autoComplete="off" />
                 </div>
                 <div className="space-y-2">
                   <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Columnas de la tabla de articulos</p>
@@ -437,11 +454,11 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
                 <Section icon={Network} title="Red / LAN">
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
                     <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Direccion IP de la impresora</span>
-                    <input type="text" placeholder="192.168.1.50" value={profile.networkHost || ''} onChange={(event) => updateProfile({ networkHost: event.target.value.trim() })} className="input-dark max-w-40 py-1 text-xs" aria-label="ip-impresora" />
+                    <input id="thermal-network-host" name="thermal-network-host" type="text" placeholder="192.168.1.50" value={profile.networkHost || ''} onChange={(event) => updateProfile({ networkHost: event.target.value.trim() })} className="input-dark max-w-40 py-1 text-xs" aria-label="ip-impresora" autoComplete="off" />
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
                     <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Puerto WebPRNT</span>
-                    <input type="number" min="1" max="65535" value={profile.networkPort || 8001} onChange={(event) => updateProfile({ networkPort: Number(event.target.value) || 8001 })} className="input-dark max-w-24 py-1 text-xs" aria-label="puerto-webprnt" />
+                    <input id="thermal-network-port" name="thermal-network-port" type="number" min="1" max="65535" value={profile.networkPort || 8001} onChange={(event) => updateProfile({ networkPort: Number(event.target.value) || 8001 })} className="input-dark max-w-24 py-1 text-xs" aria-label="puerto-webprnt" autoComplete="off" />
                   </div>
                   <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Usa la API WebPRNT (Star) u otra impresora de red compatible con envio HTTP de datos crudos. La impresora debe estar en la misma red.</p>
                 </Section>
@@ -451,7 +468,7 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
                 <Section icon={Cable} title="Puerto serial / COM">
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
                     <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Velocidad (baud rate)</span>
-                    <select value={profile.baudRate || 9600} onChange={(event) => updateProfile({ baudRate: Number(event.target.value) })} className="input-dark max-w-32 py-1 text-xs" aria-label="baud-rate">
+                    <select id="thermal-baud-rate" name="thermal-baud-rate" value={profile.baudRate || 9600} onChange={(event) => updateProfile({ baudRate: Number(event.target.value) })} className="input-dark max-w-32 py-1 text-xs" aria-label="baud-rate" autoComplete="off">
                       {[9600, 19200, 38400, 57600, 115200].map((rate) => <option key={rate} value={rate}>{rate}</option>)}
                     </select>
                   </div>
@@ -463,6 +480,7 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t px-4 py-3" style={{ borderColor: 'var(--line)', background: 'var(--bg-surface)' }}>
               <Button variant="ghost" icon={RotateCcw} onClick={handleResetAuto}>Volver a automatico</Button>
               <Button variant="ghost" icon={Trash2} onClick={handleForget}>Olvidar impresora</Button>
+              <Button variant="ghost" icon={Download} onClick={handleDownloadRaw} disabled={busy}>Descargar crudo</Button>
               <Button variant="ghost" icon={TestTube2} onClick={handleTest} disabled={busy}>Probar impresion</Button>
               <Button variant="primary" icon={Save} onClick={() => { setShowModal(false); toast.success('Configuracion termica guardada y recordada.') }}>Guardar</Button>
             </div>
