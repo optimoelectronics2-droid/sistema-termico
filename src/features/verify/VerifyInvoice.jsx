@@ -89,8 +89,13 @@ export function VerifyInvoice() {
   return (
     <div className="min-h-screen bg-[#0A0A0F] p-4 md:p-8">
       <div className="mx-auto max-w-3xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-white font-bold">Factura verificada</h1>
+        <div className="mb-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-center">
+          <h1 className="text-3xl font-black tracking-widest text-emerald-400">DESPACHADA</h1>
+          <p className="mt-1 text-sm font-bold text-white">FACTURA: {invoice.number || invoice.n || '—'} | CLIENTE: {invoice.customerName || invoice.customer || '—'} | FECHA EMISION: {invoice.date ? formatDate(invoice.date) : ''}</p>
+          <p className="mt-1 text-xs text-white/60">Verificado como auténtica · Generada por TRIFUSION TECHNOLOGIES</p>
+        </div>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-bold text-white/70">Factura verificada</h2>
           <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-300">Válida</span>
         </div>
         <div id="invoice-verify" className="relative overflow-hidden rounded-xl bg-white p-6 md:p-8 shadow-2xl">
@@ -151,10 +156,11 @@ export function VerifyInvoice() {
                 <p className="whitespace-pre-wrap text-sm text-slate-700">{invoice.notesCustomer}</p>
               </div>
             ) : null}
-            <div className="mt-6 rounded-lg bg-slate-50 p-3 text-center text-xs text-slate-600">
-              <p>Documento validado digitalmente</p>
-              <p>Serial: {invoice.serial || '—'} | Token: {invoice.token || '—'}</p>
-              <p className="mt-2 font-bold text-emerald-700">✓ Factura válida y despachada</p>
+            <div className="mt-6 rounded-lg border-2 border-emerald-500/20 bg-emerald-50 p-4 text-center">
+              <p className="text-sm font-black uppercase tracking-widest text-emerald-700">✓ DESPACHADA</p>
+              <p className="mt-1 text-xs font-bold text-slate-700">FACTURA: {invoice.number || invoice.n || '—'} | CLIENTE: {invoice.customerName || invoice.customer || '—'} | FECHA EMISION: {invoice.date ? formatDate(invoice.date) : ''}</p>
+              <p className="mt-1 text-[11px] text-slate-600">Serial: <b>{invoice.serial || '—'}</b> | Token: <b>{invoice.token || '—'}</b> | PDF: <b>factura-{invoice.number || invoice.n || '—'}.pdf</b></p>
+              <p className="mt-2 text-xs font-bold text-emerald-700">Generada por este sistema y es de TRIFUSION TECHNOLOGIES — Auténtica</p>
             </div>
           </div>
         </div>

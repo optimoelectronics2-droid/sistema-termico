@@ -342,16 +342,12 @@ function buildVerificationData(invoice, company) {
 }
 
 function buildQrPayload(invoice, verification) {
-  // Texto plano sin URL del sistema — solo datos de factura + PDF
+  const dateStr = (() => { try { const d = invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate; return d ? new Date(d).toLocaleDateString('es-DO') : '' } catch { return '' } })()
   const lines = [
+    `DESPACHADA`,
     `FACTURA: ${displayInvoiceNumber(invoice)}`,
     `CLIENTE: ${invoice?.customerName || 'Consumidor final'}`,
-    `TOTAL: ${new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP' }).format(invoice?.totals?.total || 0)}`,
-    `FECHA: ${(() => { try { const d = invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate; return d ? new Date(d).toLocaleDateString('es-DO') : '' } catch { return '' } })()}`,
-    `SERIAL: ${verification.serial}`,
-    `TOKEN: ${verification.token}`,
-    `PDF: factura-${displayInvoiceNumber(invoice)}.pdf`,
-    `ESTADO: DESPACHADA`,
+    `FECHA EMISION: ${dateStr}`,
   ]
   return lines.join('\n')
 }
