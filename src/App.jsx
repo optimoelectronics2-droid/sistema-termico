@@ -5,6 +5,7 @@ import { auth } from './lib/firebase'
 import { AppShell } from './components/layout/AppShell'
 import { ToastViewport } from './components/ui/Toast'
 import { AuthPage } from './features/auth/AuthPage'
+import { VerifyInvoice } from './features/verify/VerifyInvoice'
 import { useERPStore } from './store/useERPStore'
 import { startErpRealtimeSync } from './services/realtimeSync'
 
@@ -42,6 +43,14 @@ export default function App() {
   const syncError = useERPStore((state) => state.syncError)
   const [authState, setAuthState] = useState({ loading: true, user: null })
   useEffect(() => onAuthStateChanged(auth, (user) => setAuthState({ loading: false, user })), [])
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/verify')) {
+    return (
+      <>
+        <VerifyInvoice />
+        <ToastViewport />
+      </>
+    )
+  }
   useEffect(() => {
     if (authState.loading) return undefined
     if (authState.user) bootstrapTenantForUser(authState.user)
