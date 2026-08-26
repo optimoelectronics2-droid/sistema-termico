@@ -24,11 +24,15 @@ export function ProductEntry() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [labelEntry, setLabelEntry] = useState(null)
   const [showReport, setShowReport] = useState(false)
+  const [formNonce, setFormNonce] = useState(0)
+  const [submitting, setSubmitting] = useState(false)
 
   const editingEntry = useMemo(() => entries.find((entry) => entry.id === editingId) || null, [entries, editingId])
   const nextNumber = useMemo(() => editingEntry ? editingEntry.number : nextEntryNumber(entries, todayIso()), [entries, editingEntry])
 
   function handleSubmit(payload) {
+    if (submitting) return
+    setSubmitting(true)
     try {
       if (editingId) {
         updateProductEntry(editingId, payload)
@@ -38,8 +42,11 @@ export function ProductEntry() {
         toast.success('Entrada registrada correctamente.')
       }
       setEditingId('')
+      setFormNonce((value) => value + 1)
     } catch (error) {
       toast.error(error.message)
+    } finally {
+      setTimeout(() => setSubmitting(false), 400)
     }
   }
 
@@ -64,7 +71,7 @@ export function ProductEntry() {
 
   return (
     <div className="space-y-10">
-      <EntryForm key={editingId || 'nuevo'} editingEntry={editingEntry} nextNumber={nextNumber} onSubmit={handleSubmit} onCancelEdit={cancelEdit} />
+      <EntryForm key={`${editingId || 'nuevo'}-${formNonce}`} editingEntry={editingEntry} nextNumber={nextNumber} onSubmit={handleSubmit} onCancelEdit={cancelEdit} resetSignal={formNonce} submitting={submitting} />
 
       <EntryHistory
         entries={entries}

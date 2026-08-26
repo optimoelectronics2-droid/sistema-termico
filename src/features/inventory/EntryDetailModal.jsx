@@ -36,8 +36,8 @@ export function EntryDetailModal({ entry, onClose }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {(entry.items || []).map((item) => (
-                  <tr key={`${item.productId}-${item.subtotal}-${(item.serials || []).join()}`}>
+                {(entry.items || []).map((item, index) => (
+                  <tr key={`${entry.id || entry.number || 'entry'}-${item.productId}-${index}-${item.subtotal}`}>
                     <td className="px-4 py-3 font-bold">{item.productName || 'Producto eliminado'}</td>
                     <td className="px-4 py-3">{item.quantity}</td>
                     <td className="px-4 py-3">{currency.format(item.cost)}</td>

@@ -75,14 +75,9 @@ export function FinancialMovements() {
 
   function saveEdit() {
     try {
-      const state = useERPStore.getState()
-      const updated = (state.financialMovements || []).map((m) =>
-        m.id === editing.id
-          ? { ...m, ...editForm, amount: Number(editForm.amount), updatedAt: new Date().toISOString() }
-          : m
-      )
-      useERPStore.setState({ financialMovements: updated })
-      toast.success('Movimiento actualizado.')
+      const store = useERPStore.getState()
+      store.updateFinancialMovement(editing.id, { ...editForm, amount: Number(editForm.amount) })
+      toast.success('Movimiento actualizado y balances recalculados.')
       setEditing(null)
     } catch (error) {
       toast.error(error.message)
@@ -90,13 +85,11 @@ export function FinancialMovements() {
   }
 
   function deleteMovement(movement) {
-    if (!window.confirm(`Eliminar movimiento ${movement.id}?`)) return
+    if (!window.confirm(`Eliminar movimiento ${movement.id}? Esta acción recalcula balances.`)) return
     try {
-      const state = useERPStore.getState()
-      useERPStore.setState({
-        financialMovements: (state.financialMovements || []).filter((m) => m.id !== movement.id),
-      })
-      toast.success('Movimiento eliminado.')
+      const store = useERPStore.getState()
+      store.deleteFinancialMovement(movement.id)
+      toast.success('Movimiento eliminado y balances recalculados.')
     } catch (error) {
       toast.error(error.message)
     }

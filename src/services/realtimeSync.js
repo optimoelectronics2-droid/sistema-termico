@@ -300,8 +300,8 @@ function handleRemoteCollection(name, snapshot) {
     remoteItems = remoteItems.filter((d) => !currentExplicit.has(d.id))
   }
 
-  // GUARD: Never replace local data with empty remote results.
-  if (remoteItems.length === 0 && localItems.length > 0) {
+  // GUARD: Only protect empty remote when data is from cache (initial offline). Server-confirmed empty is allowed to propagate.
+  if (remoteItems.length === 0 && localItems.length > 0 && snapshot.metadata.fromCache) {
     applyingRemote = false
     return
   }
@@ -323,8 +323,11 @@ function handleRemoteCollection(name, snapshot) {
       continue
     }
 
-    // Local-only → keep local
+    // Local-only → check if server confirms deletion
     if (local && !remote) {
+      if (!snapshot.metadata.fromCache) {
+        continue
+      }
       merged.push(local)
       continue
     }
@@ -441,7 +444,13 @@ async function writeDiff(uid, prev, next) {
       if (!item?.id) continue
       const prevItem = prevMap.get(item.id)
       if (!prevItem || stableStr(prevItem) !== stableStr(item)) {
-        batch.set(docRef_(uid, name, item.id), sanitize(item))
+        const sanitized = sanitize(item)
+        const payloadSize = JSON.stringify(sanitized).length
+        if (payloadSize > 950000) {
+          console.warn(`[realtimeSync] ${name}/${item.id} excede 950KB (${payloadSize}), se omite`)
+          continue
+        }
+        batch.set(docRef_(uid, name, item.id), sanitized)
         ops++
         if (ops >= 500) { await batch.commit(); batch = writeBatch(db); ops = 0 }
       }
@@ -454,7 +463,12 @@ async function writeDiff(uid, prev, next) {
     const nextVal = next[name]
     if (stableStr(prevVal) !== stableStr(nextVal)) {
       if (nextVal !== undefined && nextVal !== null) {
-        batch.set(docRef_(uid, '_singletons', name), { value: sanitize(nextVal), updatedAt: serverTimestamp() })
+        const sanitizedVal = sanitize(nextVal)
+        if (JSON.stringify(sanitizedVal).length > 950000) {
+          console.warn(`[realtimeSync] singleton ${name} excede 950KB, se omite`)
+          continue
+        }
+        batch.set(docRef_(uid, '_singletons', name), { value: sanitizedVal, updatedAt: serverTimestamp() })
       } else {
         batch.delete(docRef_(uid, '_singletons', name))
       }

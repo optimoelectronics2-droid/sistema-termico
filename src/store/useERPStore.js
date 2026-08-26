@@ -29,8 +29,15 @@ import { deleteRemoteDoc } from '../services/realtimeSync'
 const today = todayIso
 const now = nowIso
 const id = (prefix) => `${prefix}-${crypto.randomUUID()}`
-const toNumber = (value) => Number(value || 0)
-const moneyValue = (value) => Math.round((toNumber(value) + Number.EPSILON) * 100) / 100
+const toNumber = (value) => {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : 0
+}
+const moneyValue = (value) => {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return 0
+  return Math.round((num + Number.EPSILON) * 100) / 100
+}
 const CREDIT_PAYMENT_METHOD = 'Credito'
 
 const emptyCompany = {
@@ -439,6 +446,28 @@ export const useERPStore = create(
         throw new Error('La papelera de reciclaje fue desactivada. Los productos eliminados no se pueden recuperar.')
       },
 
+      updateFinancialMovement(movementId, patch) {
+        const movement = get().financialMovements.find((item) => item.id === movementId)
+        if (!movement) throw new Error('Movimiento no existe.')
+        const before = { ...movement }
+        const updated = { ...movement, ...patch, amount: patch.amount !== undefined ? moneyValue(patch.amount) : movement.amount, updatedAt: now() }
+        set((state) => ({
+          financialMovements: state.financialMovements.map((item) => item.id === movementId ? updated : item),
+        }))
+        get().refreshReportStats()
+        get().addAudit('financial_movement.update', 'Finanzas', before, updated)
+        return updated
+      },
+
+      deleteFinancialMovement(movementId) {
+        const movement = get().financialMovements.find((item) => item.id === movementId)
+        if (!movement) throw new Error('Movimiento no existe.')
+        set((state) => ({ financialMovements: state.financialMovements.filter((item) => item.id !== movementId) }))
+        get().refreshReportStats()
+        get().addAudit('financial_movement.delete', 'Finanzas', movement, null)
+        deleteRemoteDoc('financialMovements', movementId).catch(() => {})
+      },
+
       adjustInventory({ productId, quantity, type, reason, serials = [] }) {
         const amount = toNumber(quantity)
         if (amount <= 0) throw new Error('La cantidad del ajuste debe ser mayor que cero.')
@@ -524,9 +553,13 @@ export const useERPStore = create(
           createdAt: now(),
         }, get().activeCompanyId)
 
+        // ── Movimientos con cursor secuencial por producto (soporta duplicados en la misma entrada)
+        const stockCursor = new Map(products.map((product) => [product.id, toNumber(product?.stock)]))
         const movements = entryItems.map((item) => {
           const product = products.find((productItem) => productItem.id === item.productId)
-          const before = toNumber(product?.stock)
+          const before = stockCursor.get(item.productId) ?? toNumber(product?.stock)
+          const after = before + item.quantity
+          stockCursor.set(item.productId, after)
           return scopeRecord(makeInventoryMovement({
             id: id('mov'),
             product,
@@ -534,7 +567,7 @@ export const useERPStore = create(
             reason: type,
             quantity: item.quantity,
             quantityBefore: before,
-            quantityAfter: before + item.quantity,
+            quantityAfter: after,
             cost: item.cost,
             serials: item.serials,
             date,
@@ -548,18 +581,29 @@ export const useERPStore = create(
           }), get().activeCompanyId)
         })
 
+        // ── Agregación por productId para soportar líneas duplicadas del mismo producto
+        const aggregates = new Map()
+        entryItems.forEach((item) => {
+          const existing = aggregates.get(item.productId) || { quantity: 0, costValue: 0, serials: [] }
+          existing.quantity += item.quantity
+          existing.costValue += item.quantity * item.cost
+          existing.serials.push(...normalizeSerialList(item.serials || []))
+          aggregates.set(item.productId, existing)
+        })
+
         set((state) => ({
           products: state.products.map((product) => {
-            const line = entryItems.find((item) => item.productId === product.id)
-            if (!line) return product
+            const aggregated = aggregates.get(product.id)
+            if (!aggregated) return product
             const currentStock = toNumber(product.stock)
-            const newStock = currentStock + line.quantity
-            const averageCost = newStock === 0 ? line.cost : (currentStock * toNumber(product.cost) + line.quantity * line.cost) / newStock
+            const newStock = currentStock + aggregated.quantity
+            const totalCurrentCost = currentStock * toNumber(product.cost)
+            const averageCost = newStock === 0 ? (aggregated.costValue / (aggregated.quantity || 1)) : (totalCurrentCost + aggregated.costValue) / newStock
             return {
               ...product,
               stock: newStock,
               cost: Math.round(averageCost * 100) / 100,
-              serials: [...normalizeSerialList(product.serials || []), ...line.serials],
+              serials: [...normalizeSerialList(product.serials || []), ...aggregated.serials],
               updatedAt: now(),
             }
           }),
@@ -597,24 +641,37 @@ export const useERPStore = create(
       deleteProductEntry(entryId, reason = 'Eliminacion de entrada') {
         const entry = get().productEntries.find((item) => item.id === entryId)
         if (!entry) throw new Error('La entrada no existe.')
+        // ── Agregación por producto para validación con líneas duplicadas
+        const deleteAggregates = new Map()
         entry.items.forEach((line) => {
-          const product = get().products.find((item) => item.id === line.productId)
-          if (!product) throw new Error(`El producto ${line.productName} no existe.`)
-          if (toNumber(product.stock) < toNumber(line.quantity)) throw new Error(`${product.name} no tiene stock suficiente para revertir esta entrada.`)
-          const unavailableSerial = normalizeSerialList(line.serials || []).find((serial) => !normalizeSerialList(product.serials || []).includes(serial))
+          const existing = deleteAggregates.get(line.productId) || { quantity: 0, serials: [], productName: line.productName }
+          existing.quantity += toNumber(line.quantity)
+          existing.serials.push(...normalizeSerialList(line.serials || []))
+          deleteAggregates.set(line.productId, existing)
+        })
+        deleteAggregates.forEach((aggregated, productId) => {
+          const product = get().products.find((item) => item.id === productId)
+          if (!product) return
+          if (toNumber(product.stock) < aggregated.quantity) throw new Error(`${product.name} no tiene stock suficiente para revertir esta entrada (necesita ${aggregated.quantity}, disponible ${product.stock}).`)
+          const productSerials = normalizeSerialList(product.serials || [])
+          const unavailableSerial = aggregated.serials.find((serial) => !productSerials.includes(serial))
           if (unavailableSerial) throw new Error(`El serial ${unavailableSerial} ya no esta disponible; no se puede eliminar la entrada.`)
         })
+        const reversalCursor = new Map(get().products.map((product) => [product.id, toNumber(product?.stock)]))
         const reversalMovements = entry.items.map((line) => {
           const product = get().products.find((item) => item.id === line.productId)
           const quantity = toNumber(line.quantity)
+          const before = reversalCursor.get(line.productId) ?? toNumber(product?.stock ?? 0)
+          const after = before - quantity
+          reversalCursor.set(line.productId, after)
           return makeInventoryMovement({
             id: id('mov'),
-            product,
+            product: product || { id: line.productId, name: line.productName, sku: '' },
             type: inventoryMovementTypes.ENTRY_REVERSAL,
             reason,
             quantity,
-            quantityBefore: toNumber(product?.stock),
-            quantityAfter: toNumber(product?.stock) - quantity,
+            quantityBefore: before,
+            quantityAfter: after,
             cost: toNumber(line.cost),
             serials: line.serials || [],
             date: today(),
@@ -624,17 +681,17 @@ export const useERPStore = create(
             documentNumber: entry.reference || entry.supplierInvoice || entry.number || entryId,
             reference: reason,
             user: get().currentUser?.name || 'Sistema',
-            extra: { entryId },
+            extra: { entryId, productId: line.productId, productName: line.productName },
           })
         })
         set((state) => ({
           products: state.products.map((product) => {
-            const line = entry.items.find((item) => item.productId === product.id)
-            if (!line) return product
+            const aggregated = deleteAggregates.get(product.id)
+            if (!aggregated) return product
             return {
               ...product,
-              stock: toNumber(product.stock) - toNumber(line.quantity),
-              serials: normalizeSerialList(product.serials || []).filter((serial) => !normalizeSerialList(line.serials || []).includes(serial)),
+              stock: toNumber(product.stock) - aggregated.quantity,
+              serials: normalizeSerialList(product.serials || []).filter((serial) => !aggregated.serials.includes(serial)),
               updatedAt: now(),
             }
           }),
@@ -733,7 +790,7 @@ export const useERPStore = create(
         const totals = calculateInvoice(items, mode)
         const payments = normalizePayments(normalizedInvoiceData.payments, normalizedInvoiceData.paymentMethod, totals.total, normalizedInvoiceData.paymentPlan)
         const paymentTotal = payments.reduce((sum, payment) => sum + toNumber(payment.amount), 0)
-        if (Math.abs(paymentTotal - totals.total) > 0.01) throw new Error(`Los pagos no cuadran. Faltan o sobran RD$${Math.abs(totals.total - paymentTotal).toFixed(2)}.`)
+        if (Math.abs(paymentTotal - totals.total) > 0.005) throw new Error(`Los pagos no cuadran. Faltan o sobran RD$${Math.abs(totals.total - paymentTotal).toFixed(2)}.`)
         const paymentSummary = buildInvoicePaymentSummary(payments, totals.total)
         items.forEach((item) => {
           const product = get().products.find((productItem) => productItem.id === item.productId)
@@ -915,7 +972,7 @@ export const useERPStore = create(
         const totals = calculateInvoice(items, invoiceData.mode || previous.mode || invoiceModes.TAXED)
         const payments = normalizePayments(invoiceData.payments, invoiceData.paymentMethod, totals.total, invoiceData.paymentPlan)
         const paymentTotal = payments.reduce((sum, payment) => sum + toNumber(payment.amount), 0)
-        if (Math.abs(paymentTotal - totals.total) > 0.01) throw new Error(`Los pagos no cuadran. Faltan o sobran RD$${Math.abs(totals.total - paymentTotal).toFixed(2)}.`)
+        if (Math.abs(paymentTotal - totals.total) > 0.005) throw new Error(`Los pagos no cuadran. Faltan o sobran RD$${Math.abs(totals.total - paymentTotal).toFixed(2)}.`)
         const paymentSummary = buildInvoicePaymentSummary(payments, totals.total)
         if (invoiceData.ncf && state.invoices.some((invoice) => invoice.id !== invoiceId && invoice.ncf === invoiceData.ncf)) throw new Error(`El NCF ${invoiceData.ncf} ya existe en otra factura.`)
         if (invoiceData.number && state.invoices.some((invoice) => invoice.id !== invoiceId && invoice.number === invoiceData.number)) throw new Error(`El numero ${invoiceData.number} ya existe en otra factura.`)
@@ -2270,6 +2327,7 @@ export const useERPStore = create(
         settings: state.settings,
         branches: state.branches,
         stores: state.stores,
+        users: state.users,
         products: state.products,
         productEntries: state.productEntries,
         inventoryMovements: state.inventoryMovements,
@@ -2279,6 +2337,7 @@ export const useERPStore = create(
         quotes: state.quotes,
         receivables: state.receivables,
         payments: state.payments,
+        financialMovements: state.financialMovements,
         expenses: state.expenses,
         conduces: state.conduces,
         creditNotes: state.creditNotes,
@@ -2300,7 +2359,7 @@ export const useERPStore = create(
         try { localStorage.setItem(backupKey, JSON.stringify(persistedState)) } catch {}
         const migrated = migrateTenantState(persistedState)
         // Post-migration validation: ensure critical arrays survived
-        const criticalArrays = ['invoices', 'quotes', 'customers', 'products', 'receivables', 'payments', 'expenses', 'conduces', 'creditNotes', 'suppliers', 'branches', 'stores', 'users']
+        const criticalArrays = ['invoices', 'quotes', 'customers', 'products', 'receivables', 'payments', 'financialMovements', 'expenses', 'conduces', 'creditNotes', 'suppliers', 'branches', 'stores', 'users', 'productEntries', 'inventoryMovements', 'serviceOrders', 'taxSequences', 'auditLogs']
         const missing = criticalArrays.filter((name) => !Array.isArray(migrated[name]))
         if (missing.length > 0) {
           console.error('[Migrate] Migracion produjo datos corruptos. Colecciones perdidas:', missing.join(', '), 'Backup guardado en', backupKey)

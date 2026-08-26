@@ -267,7 +267,11 @@ function buildAlerts({ lowStock, openReceivables, pendingPayables, cashRegister 
   ].filter(Boolean)
 }
 
-function roundMoney(value) { return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100 }
+function roundMoney(value) {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return 0
+  return Math.round((num + Number.EPSILON) * 100) / 100
+}
 function normalizeMethod(method = '') {
   const v = String(method || 'No especificado').trim().toLowerCase()
   if (v.includes('efectivo')) return 'Efectivo'; if (v.includes('tarjeta')) return 'Tarjeta'; if (v.includes('transfer')) return 'Transferencia'

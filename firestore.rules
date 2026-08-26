@@ -92,7 +92,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
       allow create: if isAuthenticated() && request.auth.uid == userId;
       allow update, delete: if isAdmin();
     }
@@ -199,18 +199,18 @@ service cloud.firestore {
     }
 
     match /categories/{doc} {
-      allow read: if true;
-      allow write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     match /settings/{docId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow create, update, delete: if isAdmin();
     }
 
     match /config/{doc} {
-      allow read: if true;
-      allow write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     match /tax_sequences/{sequenceId} {
@@ -248,20 +248,20 @@ service cloud.firestore {
     }
 
     match /printers/{printerId} {
-      allow read: if true;
-      allow create: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
       allow update, delete: if isAdmin();
     }
 
     match /monitores/{monitorId} {
-      allow read: if true;
-      allow create: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
       allow update, delete: if isAdmin();
     }
 
     match /ups/{upsId} {
-      allow read: if true;
-      allow create: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
       allow update, delete: if isAdmin();
     }
 

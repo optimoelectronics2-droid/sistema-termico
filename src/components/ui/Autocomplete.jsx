@@ -90,7 +90,7 @@ export function Autocomplete({
           ) : filtered.length ? (
             filtered.map((item, index) => (
               <button
-                key={`${item.id || getLabel(item)}-${index}`}
+                key={item.id ? `${item.id}-${index}` : `${getLabel(item)}-${index}`}
                 type="button"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {

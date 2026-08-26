@@ -355,6 +355,10 @@ function Icon({ icon: IconSvg, onClick, disabled = false }) { return <button dis
 function Input({ label, value, onChange, type = 'text', step, min, name }) { return <label><span className="label-dark">{label}</span><input id={name} name={name} type={type} step={step} min={min} value={value} onChange={(e) => onChange(e.target.value)} className="input-dark" /></label> }
 function Select({ label, value, onChange, options, name }) { return <label><span className="label-dark">{label}</span><select id={name} name={name} value={value} onChange={(e) => onChange(e.target.value)} className="input-dark">{options.map((option) => <option key={option}>{option}</option>)}</select></label> }
 function remind(item, customers, company) { const customer = customers.find((c) => c.id === item.customerId); window.open(`https://wa.me/${customer?.whatsapp || company.whatsapp}?text=${encodeURIComponent(`Estimado ${item.customerName}, le recordamos que tiene una factura No. ${item.invoiceNumber} por ${currency.format(item.balance)} con vencimiento el ${item.dueDate}. Para consultas: ${company.phone || company.whatsapp}. Gracias.`)}`) }
-function roundMoney(value) { return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100 }
+function roundMoney(value) {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return 0
+  return Math.round((num + Number.EPSILON) * 100) / 100
+}
 function parseMoney(value) { return roundMoney(String(value || '0').replace(',', '.')) }
 function moneyInput(value) { return roundMoney(value).toFixed(2) }

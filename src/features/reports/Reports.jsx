@@ -67,7 +67,7 @@ export function Reports() {
   const [mode, setMode] = useState('all')
   const [profitPeriod, setProfitPeriod] = useState('filtered')
   const [periodTable, setPeriodTable] = useState('monthly')
-  const [filters, setFilters] = useState(() => applyQuickRange(defaultReportFilters(), 'today'))
+  const [filters, setFilters] = useState(() => defaultReportFilters())
   const [showFilters, setShowFilters] = useState(false)
   const [showDetail, setShowDetail] = useState({})
   const [activeArea, setActiveArea] = useState('overview')

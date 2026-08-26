@@ -304,5 +304,7 @@ function parseDate(value) {
 }
 
 function roundMoney(value) {
-  return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100
+  const num = Number(value)
+  if (!Number.isFinite(num)) return 0
+  return Math.round((num + Number.EPSILON) * 100) / 100
 }

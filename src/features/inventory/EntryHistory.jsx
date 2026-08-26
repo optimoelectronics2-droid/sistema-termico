@@ -65,9 +65,9 @@ function StatCard({ icon: Icon, label, value, accent }) {
 }
 
 export function EntryHistory({ entries, onView, onLabels, onEdit, onDelete, showReport, onToggleReport }) {
-  const [chip, setChip] = useState('today')
-  const [dateFrom, setDateFrom] = useState(todayIso())
-  const [dateTo, setDateTo] = useState(todayIso())
+  const [chip, setChip] = useState('this_month')
+  const [dateFrom, setDateFrom] = useState(() => quickChipRange('this_month').from)
+  const [dateTo, setDateTo] = useState(() => quickChipRange('this_month').to)
   const [typeFilter, setTypeFilter] = useState('all')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState({ key: 'date', direction: 'desc' })
@@ -216,11 +216,11 @@ export function EntryHistory({ entries, onView, onLabels, onEdit, onDelete, show
               </tr>
             </thead>
             <tbody>
-              {visibleRows.length ? visibleRows.map((row) => {
+              {visibleRows.length ? visibleRows.map((row, index) => {
                 const entry = entries.find((item) => item.id === row.entryId)
                 const serialsText = row.serials.join(', ')
                 return (
-                  <tr key={`${row.entryId}-${row.productId}`} className="border-t transition hover:bg-white/[.03]" style={{ borderColor: 'rgba(255,255,255,.06)' }}>
+                  <tr key={`${row.entryId}-${row.productId}-${index}`} className="border-t transition hover:bg-white/[.03]" style={{ borderColor: 'rgba(255,255,255,.06)' }}>
                     <td className="px-4 py-3.5 whitespace-nowrap font-bold" style={{ color: '#60a5fa' }}>{row.number || '—'}</td>
                     <td className="px-4 py-3.5 whitespace-nowrap">{formatDate(row.date)}</td>
                     <td className="px-4 py-3.5"><TypeBadge type={row.type} /></td>
@@ -251,7 +251,7 @@ export function EntryHistory({ entries, onView, onLabels, onEdit, onDelete, show
                   <td colSpan={11} className="px-4 py-16 text-center">
                     <Search size={28} className="mx-auto mb-3" style={{ color: 'var(--text-tertiary)' }} />
                     <p className="font-bold" style={{ color: 'var(--text-secondary)' }}>No hay entradas para los filtros seleccionados</p>
-                    <button type="button" onClick={() => { applyChip('today'); setTypeFilter('all'); setQuery('') }} className="mt-3 text-xs font-bold underline underline-offset-4 transition hover:text-white" style={{ color: 'var(--text-tertiary)' }}>Limpiar filtros</button>
+                    <button type="button" onClick={() => { applyChip('this_month'); setTypeFilter('all'); setQuery('') }} className="mt-3 text-xs font-bold underline underline-offset-4 transition hover:text-white" style={{ color: 'var(--text-tertiary)' }}>Limpiar filtros</button>
                   </td>
                 </tr>
               )}

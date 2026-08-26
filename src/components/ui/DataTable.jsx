@@ -33,7 +33,7 @@ export const DataTable = memo(function DataTable({
     if (typeof col.header === 'string' && col.header) return { ...col, id: col.header }
     return { ...col, id: `col-${idx}` }
   }), [columns])
-  const table = useReactTable({ data: visibleRows, columns: normalizedColumns, getCoreRowModel: getCoreRowModel() })
+  const table = useReactTable({ data: visibleRows, columns: normalizedColumns, getCoreRowModel: getCoreRowModel(), getRowId: (row, index) => String(row?.id ?? row?.sku ?? `row-${index}`) })
   const hasToolbar = searchable || sortedData.length > pageSizeOptions[0]
   return (
     <div className="data-table-shell">
@@ -104,7 +104,17 @@ export const DataTable = memo(function DataTable({
 function filterRows(rows, query) {
   if (!query) return rows
   const term = normalize(query)
-  return rows.filter((row) => normalize(row).includes(term))
+  return rows.filter((row) => {
+    const searchable = Object.values(row)
+      .flatMap((value) => {
+        if (value == null) return []
+        if (Array.isArray(value)) return value.map((item) => (typeof item === 'object' ? JSON.stringify(item) : String(item)))
+        if (typeof value === 'object') return [JSON.stringify(value)]
+        return [String(value)]
+      })
+      .join(' ')
+    return normalize(searchable).includes(term)
+  })
 }
 
 function sortRows(rows, sort) {

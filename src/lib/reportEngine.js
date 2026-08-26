@@ -786,7 +786,11 @@ function weekKey(date) {
 }
 function periodLabel(type, key) { if (type === 'daily') return key; if (type === 'weekly') return `Semana ${key}`; return key }
 function toNumber(value) { const n = Number(value || 0); return Number.isFinite(n) ? n : 0 }
-function roundMoney(value) { return Math.round((toNumber(value) + Number.EPSILON) * 100) / 100 }
+function roundMoney(value) {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return 0
+  return Math.round((num + Number.EPSILON) * 100) / 100
+}
 const moneyFmt = new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP' })
 const money = (v) => moneyFmt.format(v || 0)
 function simpleHash(value) { let hash = 0; for (let i = 0; i < value.length; i++) { hash = ((hash << 5) - hash) + value.charCodeAt(i); hash |= 0 } return `${REPORT_ENGINE_VERSION}-${Math.abs(hash).toString(36)}-${value.length.toString(36)}` }

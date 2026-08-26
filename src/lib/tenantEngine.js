@@ -39,8 +39,12 @@ export const defaultBranding = {
   currency: 'DOP',
 }
 
-export function scopeRecord(record) {
-  return record
+export function scopeRecord(record, companyId) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return record
+  if (!companyId) return record
+  const existingCompanyId = record.companyId || record.tenantId
+  if (existingCompanyId) return record
+  return { ...record, companyId, tenantId: companyId }
 }
 
 export function normalizeCompany(input = {}) {

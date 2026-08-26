@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, Save, Trash2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Autocomplete } from '../../components/ui/Autocomplete'
@@ -30,17 +30,22 @@ function buildForm(entry) {
   }
 }
 
-export function EntryForm({ editingEntry, nextNumber, onSubmit, onCancelEdit }) {
+export function EntryForm({ editingEntry, nextNumber, onSubmit, onCancelEdit, resetSignal = 0, submitting = false }) {
   const products = useERPStore((state) => state.products)
   const suppliers = useERPStore((state) => state.suppliers)
   const [form, setForm] = useState(() => buildForm(editingEntry))
   const total = form.items.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.cost || 0), 0)
+
+  useEffect(() => {
+    setForm(buildForm(editingEntry))
+  }, [editingEntry, resetSignal])
 
   function setLine(id, patch) {
     setForm((state) => ({ ...state, items: state.items.map((item) => item.id === id ? { ...item, ...patch } : item) }))
   }
 
   function handleSave() {
+    if (submitting) return
     onSubmit({
       ...form,
       items: form.items.map((item) => ({
@@ -93,8 +98,8 @@ export function EntryForm({ editingEntry, nextNumber, onSubmit, onCancelEdit }) 
         </table>
       </div>
       <div className="mt-4 flex items-center justify-between">
-        <Button variant="ghost" icon={Plus} onClick={() => setForm((s) => ({ ...s, items: [...s.items, blankItem()] }))}>Agregar producto</Button>
-        <div className="flex items-center gap-4"><p className="font-display text-2xl font-bold">{currency.format(total)}</p><Button icon={Save} onClick={handleSave}>{editingEntry ? 'Actualizar entrada' : 'Guardar entrada'}</Button></div>
+        <Button variant="ghost" icon={Plus} onClick={() => setForm((s) => ({ ...s, items: [...s.items, blankItem()] }))} disabled={submitting}>Agregar producto</Button>
+        <div className="flex items-center gap-4"><p className="font-display text-2xl font-bold">{currency.format(total)}</p><Button icon={Save} onClick={handleSave} disabled={submitting}>{submitting ? 'Guardando...' : editingEntry ? 'Actualizar entrada' : 'Guardar entrada'}</Button></div>
       </div>
     </section>
   )
