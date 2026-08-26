@@ -1,9 +1,10 @@
 import { create } from 'zustand'
+import { randomUuid } from '../lib/id'
 
 export const useToast = create((set) => ({
   toasts: [],
   push(toast) {
-    const id = crypto.randomUUID()
+    const id = randomUuid()
     const payload = { id, type: 'success', duration: 3000, ...toast }
     set((state) => ({ toasts: [...state.toasts, payload] }))
     if (payload.duration > 0) {
@@ -24,4 +25,3 @@ export const useToast = create((set) => ({
     set((state) => ({ toasts: state.toasts.filter((item) => item.id !== id) }))
   },
 }))
-

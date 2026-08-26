@@ -223,11 +223,11 @@ export function FinancialMovements() {
           </div>
           <label className="flex items-center gap-2 text-xs font-bold" style={{ color: 'var(--text-secondary)' }}>
             <CalendarDays size={14} />
-            <input id="financial-date-from" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="input-dark max-w-36"  autoComplete="off" />
+            <input id="financial-date-from" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="input-dark max-w-36"  autoComplete="off"  name="financial-date-from" />
             <span>-</span>
-            <input id="financial-date-to" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="input-dark max-w-36"  autoComplete="off" />
+            <input id="financial-date-to" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="input-dark max-w-36"  autoComplete="off"  name="financial-date-to" />
           </label>
-          <select id="financial-type-filter" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="input-dark max-w-40" aria-label="financial-type-filter" autoComplete="off">
+          <select id="financial-type-filter" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="input-dark max-w-40" aria-label="financial-type-filter" autoComplete="off" name="financial-type-filter">
             <option value="all">Todos los tipos</option>
             {types.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>

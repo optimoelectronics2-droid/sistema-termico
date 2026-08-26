@@ -313,17 +313,17 @@ function ProductForm({ product, categories, suppliers, onSave, saving }) {
       <div className="space-y-4">
         <section className="rounded-lg border p-3" style={{ borderColor: 'var(--line)' }}>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            <CompactField label="Nombre *" error={touched && errors.name}><input id="inventory-name" value={draft.name} onChange={(e) => set('name', e.target.value)} className="input-dark text-sm" placeholder="Ej. iPhone 15 Pro 256GB"  autoComplete="off" /></CompactField>
-            <CompactField label="Categoria *" error={touched && errors.category}><input id="inventory-category" list="category-options" value={draft.category} onChange={(e) => set('category', e.target.value)} className="input-dark text-sm" placeholder="Categoria"  autoComplete="off" /><datalist id="category-options">{categories.map((item) => <option key={item} value={item} />)}</datalist></CompactField>
-            <CompactField label="Marca"><input id="inventory-brand" value={draft.brand} onChange={(e) => set('brand', e.target.value)} className="input-dark text-sm" placeholder="Apple, Samsung..."  autoComplete="off" /></CompactField>
-            <CompactField label="Modelo"><input id="inventory-model" value={draft.model} onChange={(e) => set('model', e.target.value)} className="input-dark text-sm"  autoComplete="off" /></CompactField>
-            <CompactField label="SKU"><input id="inventory-sku" value={draft.sku} onChange={(e) => set('sku', e.target.value)} className="input-dark text-sm" placeholder="Autogenerado"  autoComplete="off" /></CompactField>
-            <CompactField label="Codigo barras"><input id="inventory-barcode" value={draft.barcode} onChange={(e) => set('barcode', e.target.value)} className="input-dark text-sm"  autoComplete="off" /></CompactField>
-            <CompactField label="Color"><input id="inventory-color" value={draft.color} onChange={(e) => set('color', e.target.value)} className="input-dark text-sm"  autoComplete="off" /></CompactField>
-            <CompactField label="Capacidad/talla"><input id="inventory-capacity" value={draft.capacity} onChange={(e) => set('capacity', e.target.value)} className="input-dark text-sm"  autoComplete="off" /></CompactField>
-            <CompactField label="Ubicacion"><input id="inventory-location" value={draft.location} onChange={(e) => set('location', e.target.value)} className="input-dark text-sm" placeholder="A1, vitrina..."  autoComplete="off" /></CompactField>
+            <CompactField label="Nombre *" error={touched && errors.name}><input id="inventory-name" value={draft.name} onChange={(e) => set('name', e.target.value)} className="input-dark text-sm" placeholder="Ej. iPhone 15 Pro 256GB"  autoComplete="off"  name="inventory-name" /></CompactField>
+            <CompactField label="Categoria *" error={touched && errors.category}><input id="inventory-category" list="category-options" value={draft.category} onChange={(e) => set('category', e.target.value)} className="input-dark text-sm" placeholder="Categoria"  autoComplete="off"  name="inventory-category" /><datalist id="category-options">{categories.map((item) => <option key={item} value={item} />)}</datalist></CompactField>
+            <CompactField label="Marca"><input id="inventory-brand" value={draft.brand} onChange={(e) => set('brand', e.target.value)} className="input-dark text-sm" placeholder="Apple, Samsung..."  autoComplete="off"  name="inventory-brand" /></CompactField>
+            <CompactField label="Modelo"><input id="inventory-model" value={draft.model} onChange={(e) => set('model', e.target.value)} className="input-dark text-sm"  autoComplete="off"  name="inventory-model" /></CompactField>
+            <CompactField label="SKU"><input id="inventory-sku" value={draft.sku} onChange={(e) => set('sku', e.target.value)} className="input-dark text-sm" placeholder="Autogenerado"  autoComplete="off"  name="inventory-sku" /></CompactField>
+            <CompactField label="Codigo barras"><input id="inventory-barcode" value={draft.barcode} onChange={(e) => set('barcode', e.target.value)} className="input-dark text-sm"  autoComplete="off"  name="inventory-barcode" /></CompactField>
+            <CompactField label="Color"><input id="inventory-color" value={draft.color} onChange={(e) => set('color', e.target.value)} className="input-dark text-sm"  autoComplete="off"  name="inventory-color" /></CompactField>
+            <CompactField label="Capacidad/talla"><input id="inventory-capacity" value={draft.capacity} onChange={(e) => set('capacity', e.target.value)} className="input-dark text-sm"  autoComplete="off"  name="inventory-capacity" /></CompactField>
+            <CompactField label="Ubicacion"><input id="inventory-location" value={draft.location} onChange={(e) => set('location', e.target.value)} className="input-dark text-sm" placeholder="A1, vitrina..."  autoComplete="off"  name="inventory-location" /></CompactField>
           </div>
-          <CompactField label="Descripcion" className="mt-2"><textarea id="inventory-description" value={draft.description} onChange={(e) => set('description', e.target.value)} className="input-dark min-h-16 text-sm"  autoComplete="off" /></CompactField>
+          <CompactField label="Descripcion" className="mt-2"><textarea id="inventory-description" value={draft.description} onChange={(e) => set('description', e.target.value)} className="input-dark min-h-16 text-sm"  autoComplete="off"  name="inventory-description" /></CompactField>
         </section>
 
         <section className="rounded-lg border p-3" style={{ borderColor: 'var(--line)' }}>
@@ -337,16 +337,16 @@ function ProductForm({ product, categories, suppliers, onSave, saving }) {
             <CompactField label={draft.id ? 'Stock actual' : 'Stock inicial'}><NumberInput id="inventory-stock" name="inventoryStock" value={draft.id ? draft.stock : draft.initialStock} onChange={(value) => draft.id ? set('stock', value) : set('initialStock', value)} /></CompactField>
             <CompactField label="Stock minimo"><NumberInput id="inventory-stockMin" name="inventoryStockMin" value={draft.stockMin} onChange={(value) => set('stockMin', value)} /></CompactField>
             <CompactField label="Stock maximo"><NumberInput id="inventory-stockMax" name="inventoryStockMax" value={draft.stockMax} onChange={(value) => set('stockMax', value)} /></CompactField>
-            <CompactField label="Unidad"><select id="inventory-unit" value={draft.unit} onChange={(e) => set('unit', e.target.value)} className="input-dark text-sm" autoComplete="off"><option>Unidad</option><option>Caja</option><option>Kit</option><option>Par</option><option>Yarda</option><option>Metro</option></select></CompactField>
-            <CompactField label="ITBIS"><select id="inventory-taxStatus" value={draft.taxStatus} onChange={(e) => set('taxStatus', e.target.value)} className="input-dark text-sm" autoComplete="off"><option value="no_tax">Sin ITBIS</option><option value="taxed">Con ITBIS</option><option value="exempt">Exento</option></select></CompactField>
-            <CompactField label="Proveedor"><select id="inventory-supplierId" value={draft.supplierId} onChange={(e) => set('supplierId', e.target.value)} className="input-dark text-sm" autoComplete="off">{suppliers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></CompactField>
+            <CompactField label="Unidad"><select id="inventory-unit" value={draft.unit} onChange={(e) => set('unit', e.target.value)} className="input-dark text-sm" autoComplete="off" name="inventory-unit"><option>Unidad</option><option>Caja</option><option>Kit</option><option>Par</option><option>Yarda</option><option>Metro</option></select></CompactField>
+            <CompactField label="ITBIS"><select id="inventory-taxStatus" value={draft.taxStatus} onChange={(e) => set('taxStatus', e.target.value)} className="input-dark text-sm" autoComplete="off" name="inventory-taxStatus"><option value="no_tax">Sin ITBIS</option><option value="taxed">Con ITBIS</option><option value="exempt">Exento</option></select></CompactField>
+            <CompactField label="Proveedor"><select id="inventory-supplierId" value={draft.supplierId} onChange={(e) => set('supplierId', e.target.value)} className="input-dark text-sm" autoComplete="off" name="inventory-supplierId">{suppliers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></CompactField>
           </div>
           <div className="mt-2 flex items-center gap-3">
             <label className="flex items-center gap-2 text-xs font-bold" style={{ color: 'rgba(255,255,255,.7)' }}>
-              <input id="inventory-requiresSerial" type="checkbox" checked={draft.requiresSerial} onChange={(e) => set('requiresSerial', e.target.checked)}  autoComplete="off" />
+              <input id="inventory-requiresSerial" type="checkbox" checked={draft.requiresSerial} onChange={(e) => set('requiresSerial', e.target.checked)}  autoComplete="off"  name="inventory-requiresSerial" />
               Serial / IMEI
             </label>
-            {draft.requiresSerial ? <input id="inventory-serialsText" value={draft.serialsText} onChange={(e) => set('serialsText', e.target.value)} className="input-dark flex-1 text-sm" placeholder="Seriales: uno por linea o coma" aria-label="inventory-serialsText"  autoComplete="off" /> : null}
+            {draft.requiresSerial ? <input id="inventory-serialsText" value={draft.serialsText} onChange={(e) => set('serialsText', e.target.value)} className="input-dark flex-1 text-sm" placeholder="Seriales: uno por linea o coma" aria-label="inventory-serialsText"  autoComplete="off"  name="inventory-serialsText" /> : null}
           </div>
         </section>
       </div>
@@ -354,7 +354,7 @@ function ProductForm({ product, categories, suppliers, onSave, saving }) {
       <aside className="space-y-3">
         <div className="rounded-lg border p-3 text-center" style={{ borderColor: 'var(--line)' }}>
           <ImagePlus className="mx-auto mb-1" size={24} style={{ color: 'rgba(255,255,255,.3)' }} />
-          <input id="inventory-image" value={draft.image || ''} onChange={(e) => set('image', e.target.value)} className="input-dark mt-1 text-sm" placeholder="URL imagen" aria-label="inventory-image"  autoComplete="off" />
+          <input id="inventory-image" value={draft.image || ''} onChange={(e) => set('image', e.target.value)} className="input-dark mt-1 text-sm" placeholder="URL imagen" aria-label="inventory-image"  autoComplete="off"  name="inventory-image" />
         </div>
         <div className="space-y-1 rounded-lg border p-3 text-xs" style={{ borderColor: 'var(--line)' }}>
           <PreviewLine label="SKU" value={draft.sku || 'Autogenerado'} />
@@ -723,20 +723,20 @@ function BarcodeLabelPrinter({ product }) {
   return (
     <div className="space-y-4">
       <div className="no-print grid gap-3 sm:grid-cols-2 md:grid-cols-[1fr_130px_120px_80px_auto_auto]">
-        <label><span className="label-dark">Codigo a imprimir</span><select id="label-source" value={source} onChange={(event) => setSource(event.target.value)} className="input-dark" autoComplete="off"><option value="barcode" disabled={!product.barcode}>Codigo de barras</option><option value="sku" disabled={!product.sku}>SKU</option><option value="id">ID interno</option><option value="manual">Manual</option></select></label>
-        <label><span className="label-dark">Tamaño</span><select id="inventory-label-size" value={labelSize.id} onChange={(event) => setLabelSize(LABEL_SIZES.find((s) => s.id === event.target.value) || LABEL_SIZES[0])} className="input-dark" autoComplete="off">{LABEL_SIZES.map((size) => <option key={size.id} value={size.id}>{size.name}</option>)}</select></label>
-        <label><span className="label-dark">Cantidad</span><input id="label-quantity" type="number" min="1" max="120" value={quantityMode === 'stock' ? qty : quantity} onChange={(event) => setQuantity(event.target.value)} disabled={quantityMode === 'stock'} className="input-dark"  autoComplete="off" /></label>
-        <label className="flex items-center gap-2 pt-6 text-sm"><input id="label-showPrice" type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)}  autoComplete="off" /> Precio</label>
-        <label><span className="label-dark">Metodo</span><select id="label-printMode" value={printMode} onChange={(event) => setPrintMode(event.target.value)} className="input-dark" autoComplete="off">{ALL_PRINT_MODES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
+        <label><span className="label-dark">Codigo a imprimir</span><select id="label-source" value={source} onChange={(event) => setSource(event.target.value)} className="input-dark" autoComplete="off" name="label-source"><option value="barcode" disabled={!product.barcode}>Codigo de barras</option><option value="sku" disabled={!product.sku}>SKU</option><option value="id">ID interno</option><option value="manual">Manual</option></select></label>
+        <label><span className="label-dark">Tamaño</span><select id="inventory-label-size" value={labelSize.id} onChange={(event) => setLabelSize(LABEL_SIZES.find((s) => s.id === event.target.value) || LABEL_SIZES[0])} className="input-dark" autoComplete="off" name="inventory-label-size">{LABEL_SIZES.map((size) => <option key={size.id} value={size.id}>{size.name}</option>)}</select></label>
+        <label><span className="label-dark">Cantidad</span><input id="label-quantity" type="number" min="1" max="120" value={quantityMode === 'stock' ? qty : quantity} onChange={(event) => setQuantity(event.target.value)} disabled={quantityMode === 'stock'} className="input-dark"  autoComplete="off"  name="label-quantity" /></label>
+        <label className="flex items-center gap-2 pt-6 text-sm"><input id="label-showPrice" type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)}  autoComplete="off"  name="label-showPrice" /> Precio</label>
+        <label><span className="label-dark">Metodo</span><select id="label-printMode" value={printMode} onChange={(event) => setPrintMode(event.target.value)} className="input-dark" autoComplete="off" name="label-printMode">{ALL_PRINT_MODES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
         <Button icon={Printer} variant="primary" className="self-end" onClick={handlePrint} disabled={!code || qty < 1}>
           {printMode === 'browser' ? 'Imprimir' : printMode === 'usb' || printMode === 'escpos-usb' ? 'Enviar a USB' : 'Descargar'}
         </Button>
       </div>
       <div className="no-print flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          {source === 'manual' ? <label className="flex items-center gap-1"><span className="text-xs text-white/50">Codigo manual</span><input id="label-manualCode" value={manualCode} onChange={(event) => setManualCode(event.target.value)} className="input-dark w-36" placeholder="Escanee o escriba"  autoComplete="off" /></label> : <div className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'var(--line)', background: 'rgba(255,255,255,.035)' }}><span className="block text-xs font-bold uppercase text-white/40">Codigo real</span><b className="font-mono">{code || 'SIN-CODIGO'}</b></div>}
-          <label className="flex items-center gap-1"><span className="text-xs text-white/50">Cantidad</span><select id="label-quantityMode" value={quantityMode} onChange={(event) => setQuantityMode(event.target.value)} className="input-dark w-28" autoComplete="off"><option value="manual">Manual</option><option value="stock">Automatica x stock</option></select></label>
-          <label className="flex items-center gap-1 pt-5 text-sm"><input id="label-showSku" type="checkbox" checked={showSku} onChange={(e) => setShowSku(e.target.checked)}  autoComplete="off" /> SKU</label>
+          {source === 'manual' ? <label className="flex items-center gap-1"><span className="text-xs text-white/50">Codigo manual</span><input id="label-manualCode" value={manualCode} onChange={(event) => setManualCode(event.target.value)} className="input-dark w-36" placeholder="Escanee o escriba"  autoComplete="off"  name="label-manualCode" /></label> : <div className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'var(--line)', background: 'rgba(255,255,255,.035)' }}><span className="block text-xs font-bold uppercase text-white/40">Codigo real</span><b className="font-mono">{code || 'SIN-CODIGO'}</b></div>}
+          <label className="flex items-center gap-1"><span className="text-xs text-white/50">Cantidad</span><select id="label-quantityMode" value={quantityMode} onChange={(event) => setQuantityMode(event.target.value)} className="input-dark w-28" autoComplete="off" name="label-quantityMode"><option value="manual">Manual</option><option value="stock">Automatica x stock</option></select></label>
+          <label className="flex items-center gap-1 pt-5 text-sm"><input id="label-showSku" type="checkbox" checked={showSku} onChange={(e) => setShowSku(e.target.checked)}  autoComplete="off"  name="label-showSku" /> SKU</label>
         </div>
         <div className="flex gap-1">
           <button onClick={() => setShowDesigner(true)} className="rounded bg-white/10 px-2 py-1 text-xs text-white/70 hover:bg-white/20" title="Disenar etiqueta personalizada">Disenar</button>

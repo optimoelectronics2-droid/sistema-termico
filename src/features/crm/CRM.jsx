@@ -95,7 +95,7 @@ export function CRM() {
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="module-search-bar">
             <Search size={16} style={{ color: 'var(--text-tertiary)' }} />
-            <input id="crm-query" value={query} onChange={(e) => setQuery(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" placeholder="Buscar por nombre, RNC, cedula, email, telefono..." aria-label="crm-query"  autoComplete="off" />
+            <input id="crm-query" value={query} onChange={(e) => setQuery(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" placeholder="Buscar por nombre, RNC, cedula, email, telefono..." aria-label="crm-query"  autoComplete="off"  name="crm-query" />
           </div>
         </div>
         <div className="mb-4 flex flex-wrap gap-2">

@@ -58,12 +58,18 @@ service cloud.firestore {
       return !('companyId' in request.resource.data) || request.resource.data.companyId == companyId;
     }
 
-    match /accounts/{userId}/erp/{docId} {
-      allow read, create, update, delete: if isAuthenticated() && request.auth.uid == userId;
+    // The legacy monolithic state is read only during migration. New writes use
+    // one document per collection item below, preventing oversized state blobs.
+    match /accounts/{userId}/erp/state {
+      allow read, delete: if isAuthenticated() && request.auth.uid == userId;
     }
 
-    match /accounts/{userId}/{document=**} {
-      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    match /accounts/{userId}/{collectionId}/{documentId} {
+      allow read, delete: if isAuthenticated() && request.auth.uid == userId;
+      allow create, update: if isAuthenticated()
+        && request.auth.uid == userId
+        && collectionId != 'erp'
+        && request.resource.data.size() <= 100;
     }
 
     match /companies/{companyId} {

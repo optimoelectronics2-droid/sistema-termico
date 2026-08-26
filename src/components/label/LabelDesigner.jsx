@@ -147,7 +147,7 @@ export default function LabelDesigner({ initialDesign, onSave, onClose, calibrat
       <div className="flex flex-1 flex-col overflow-auto p-4">
         <div className="mb-2 flex items-center gap-2 text-xs text-white/60">
           <span>Zoom:</span>
-          <input id="designer-zoom" type="range" min="0.5" max="5" step="0.1" value={zoom} onChange={e => setZoom(Number(e.target.value))} className="w-24" aria-label="designer-zoom"  autoComplete="off" />
+          <input id="designer-zoom" type="range" min="0.5" max="5" step="0.1" value={zoom} onChange={e => setZoom(Number(e.target.value))} className="w-24" aria-label="designer-zoom"  autoComplete="off"  name="designer-zoom" />
           <span>{zoom.toFixed(1)}x</span>
           <span className="ml-4 text-white/40">{size.name} ({size.w}×{size.h} mm)</span>
           {!validation.valid && <span className="ml-4 text-amber-300">⚠ {validation.errors[0]}</span>}
@@ -252,7 +252,7 @@ export default function LabelDesigner({ initialDesign, onSave, onClose, calibrat
 
         <label className="mb-2 block">
           <span className="text-white/50">Etiqueta</span>
-          <select id="designer-label-size" value={design.labelSizeId} onChange={e => setDesign(s => ({ ...s, labelSizeId: e.target.value, width: getLabelSize(e.target.value).w, height: getLabelSize(e.target.value).h }))} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white" autoComplete="off">
+          <select id="designer-label-size" value={design.labelSizeId} onChange={e => setDesign(s => ({ ...s, labelSizeId: e.target.value, width: getLabelSize(e.target.value).w, height: getLabelSize(e.target.value).h }))} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white" autoComplete="off" name="designer-label-size">
             {Object.values(LABEL_SIZES).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </label>
@@ -273,50 +273,50 @@ export default function LabelDesigner({ initialDesign, onSave, onClose, calibrat
           <div className="space-y-2 border-t border-white/10 pt-2">
             <h4 className="font-bold text-white">{selectedEl.type.toUpperCase()}</h4>
             <label className="block"><span className="text-white/50">Contenido</span>
-              <input id="designer-content" value={selectedEl.content || ''} onChange={e => updateElement(selectedId, { content: e.target.value })} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white"  autoComplete="off" />
+              <input id="designer-content" value={selectedEl.content || ''} onChange={e => updateElement(selectedId, { content: e.target.value })} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white"  autoComplete="off"  name="designer-content" />
             </label>
             <div className="grid grid-cols-2 gap-2">
               <label className="block"><span className="text-white/50">X (mm)</span>
-                <input id="designer-x" type="number" step="0.5" value={selectedEl.x} onChange={e => updateElement(selectedId, { x: Number(e.target.value) })} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white"  autoComplete="off" />
+                <input id="designer-x" type="number" step="0.5" value={selectedEl.x} onChange={e => updateElement(selectedId, { x: Number(e.target.value) })} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white"  autoComplete="off"  name="designer-x" />
               </label>
               <label className="block"><span className="text-white/50">Y (mm)</span>
-                <input id="designer-y" type="number" step="0.5" value={selectedEl.y} onChange={e => updateElement(selectedId, { y: Number(e.target.value) })} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white"  autoComplete="off" />
+                <input id="designer-y" type="number" step="0.5" value={selectedEl.y} onChange={e => updateElement(selectedId, { y: Number(e.target.value) })} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white"  autoComplete="off"  name="designer-y" />
               </label>
               <label className="block"><span className="text-white/50">Ancho (mm)</span>
-                <input id="designer-width" type="number" step="0.5" value={selectedEl.width} onChange={e => updateElement(selectedId, { width: Number(e.target.value) })} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white"  autoComplete="off" />
+                <input id="designer-width" type="number" step="0.5" value={selectedEl.width} onChange={e => updateElement(selectedId, { width: Number(e.target.value) })} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white"  autoComplete="off"  name="designer-width" />
               </label>
               <label className="block"><span className="text-white/50">Alto (mm)</span>
-                <input id="designer-height" type="number" step="0.5" value={selectedEl.height} onChange={e => updateElement(selectedId, { height: Number(e.target.value) })} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white"  autoComplete="off" />
+                <input id="designer-height" type="number" step="0.5" value={selectedEl.height} onChange={e => updateElement(selectedId, { height: Number(e.target.value) })} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white"  autoComplete="off"  name="designer-height" />
               </label>
             </div>
             {selectedEl.type === 'barcode' && (
               <>
                 <label className="block"><span className="text-white/50">Tipo</span>
-                  <select id="designer-barcode-type" value={selectedEl.barcodeType || 'code128'} onChange={e => updateElement(selectedId, { barcodeType: e.target.value })} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white" autoComplete="off">
+                  <select id="designer-barcode-type" value={selectedEl.barcodeType || 'code128'} onChange={e => updateElement(selectedId, { barcodeType: e.target.value })} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white" autoComplete="off" name="designer-barcode-type">
                     <option value="code128">Code128</option>
                     <option value="ean13">EAN-13</option>
                     <option value="upc">UPC-A</option>
                   </select>
                 </label>
                 <label className="block"><span className="text-white/50">Altura código (mm)</span>
-                  <input id="designer-barcode-height" type="number" step="0.5" value={selectedEl.barcodeHeight || 30} onChange={e => updateElement(selectedId, { barcodeHeight: Number(e.target.value) })} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white"  autoComplete="off" />
+                  <input id="designer-barcode-height" type="number" step="0.5" value={selectedEl.barcodeHeight || 30} onChange={e => updateElement(selectedId, { barcodeHeight: Number(e.target.value) })} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white"  autoComplete="off"  name="designer-barcode-height" />
                 </label>
-                <label className="flex items-center gap-2"><input id="designer-show-human-readable" type="checkbox" checked={selectedEl.showHumanReadable !== false} onChange={e => updateElement(selectedId, { showHumanReadable: e.target.checked })} className="accent-blue-500"  autoComplete="off" /> Texto legible</label>
+                <label className="flex items-center gap-2"><input id="designer-show-human-readable" type="checkbox" checked={selectedEl.showHumanReadable !== false} onChange={e => updateElement(selectedId, { showHumanReadable: e.target.checked })} className="accent-blue-500"  autoComplete="off"  name="designer-show-human-readable" /> Texto legible</label>
               </>
             )}
             {selectedEl.type === 'text' && (
               <>
                 <label className="block"><span className="text-white/50">Tamaño (mm)</span>
-                  <input id="designer-font-size" type="number" step="0.5" value={selectedEl.fontSize} onChange={e => updateElement(selectedId, { fontSize: Number(e.target.value) })} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white"  autoComplete="off" />
+                  <input id="designer-font-size" type="number" step="0.5" value={selectedEl.fontSize} onChange={e => updateElement(selectedId, { fontSize: Number(e.target.value) })} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white"  autoComplete="off"  name="designer-font-size" />
                 </label>
-                <label className="flex items-center gap-2"><input id="designer-bold" type="checkbox" checked={selectedEl.bold} onChange={e => updateElement(selectedId, { bold: e.target.checked })} className="accent-blue-500"  autoComplete="off" /> Negrita</label>
+                <label className="flex items-center gap-2"><input id="designer-bold" type="checkbox" checked={selectedEl.bold} onChange={e => updateElement(selectedId, { bold: e.target.checked })} className="accent-blue-500"  autoComplete="off"  name="designer-bold" /> Negrita</label>
                 <label className="block"><span className="text-white/50">Color</span>
-                  <input id="designer-color" type="color" value={selectedEl.color || '#111827'} onChange={e => updateElement(selectedId, { color: e.target.value })} className="mt-1 w-full rounded border border-white/20 bg-slate-800"  autoComplete="off" />
+                  <input id="designer-color" type="color" value={selectedEl.color || '#111827'} onChange={e => updateElement(selectedId, { color: e.target.value })} className="mt-1 w-full rounded border border-white/20 bg-slate-800"  autoComplete="off"  name="designer-color" />
                 </label>
               </>
             )}
-            <label className="flex items-center gap-2"><input id="designer-locked" type="checkbox" checked={selectedEl.locked} onChange={e => updateElement(selectedId, { locked: e.target.checked })} className="accent-blue-500"  autoComplete="off" /> Bloquear</label>
-            <label className="flex items-center gap-2"><input id="designer-visible" type="checkbox" checked={selectedEl.visible} onChange={e => updateElement(selectedId, { visible: e.target.checked })} className="accent-blue-500"  autoComplete="off" /> Visible</label>
+            <label className="flex items-center gap-2"><input id="designer-locked" type="checkbox" checked={selectedEl.locked} onChange={e => updateElement(selectedId, { locked: e.target.checked })} className="accent-blue-500"  autoComplete="off"  name="designer-locked" /> Bloquear</label>
+            <label className="flex items-center gap-2"><input id="designer-visible" type="checkbox" checked={selectedEl.visible} onChange={e => updateElement(selectedId, { visible: e.target.checked })} className="accent-blue-500"  autoComplete="off"  name="designer-visible" /> Visible</label>
           </div>
         )}
 
@@ -334,16 +334,16 @@ export default function LabelDesigner({ initialDesign, onSave, onClose, calibrat
             <h3 className="mb-4 text-base font-bold text-white">Exportar PDF</h3>
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm text-white/80">
-                <input type="radio" name="export-type" checked={exportModal.type === 'single'} onChange={() => setExportModal({ ...exportModal, type: 'single' })} className="accent-blue-500"  autoComplete="off" />
+                <input type="radio" name="label-designer-export-type" checked={exportModal.type === 'single'} onChange={() => setExportModal({ ...exportModal, type: 'single' })} className="accent-blue-500" autoComplete="off" id="label-designer-export-single" />
                 Una etiqueta por página
               </label>
               <label className="flex items-center gap-2 text-sm text-white/80">
-                <input type="radio" name="export-type" checked={exportModal.type === 'sheet'} onChange={() => setExportModal({ ...exportModal, type: 'sheet' })} className="accent-blue-500"  autoComplete="off" />
+                <input type="radio" name="label-designer-export-type" checked={exportModal.type === 'sheet'} onChange={() => setExportModal({ ...exportModal, type: 'sheet' })} className="accent-blue-500" autoComplete="off" id="label-designer-export-sheet" />
                 Múltiples etiquetas por página (A4)
               </label>
               <label className="block">
                 <span className="text-xs text-white/50">Cantidad</span>
-                <input type="number" min="1" max="999" value={exportModal.quantity} onChange={e => setExportModal({ ...exportModal, quantity: Math.max(1, Number(e.target.value) || 1) })} className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white"  id="labeldesigner-field" name="labeldesigner-field" autoComplete="off" />
+                <input type="number" min="1" max="999" value={exportModal.quantity} onChange={e => setExportModal({ ...exportModal, quantity: Math.max(1, Number(e.target.value) || 1) })} className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white" id="label-designer-export-quantity" name="label-designer-export-quantity" autoComplete="off" />
               </label>
             </div>
             <div className="mt-4 flex gap-2">

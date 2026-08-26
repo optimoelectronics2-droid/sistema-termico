@@ -10,11 +10,12 @@ import { useERPStore } from '../../store/useERPStore'
 import { addDaysIso, todayIso } from '../../lib/dateTime'
 import { assertValidTaxSequence, calculateInvoice, invoiceModes, ncfTypes, nextNcf } from '../../lib/taxEngine'
 import { currency } from '../../lib/formatters'
+import { randomUuid } from '../../lib/id'
 
 const today = todayIso
-const emptyPayment = () => ({ id: crypto.randomUUID(), method: 'Efectivo', amount: 0, reference: '' })
+const emptyPayment = () => ({ id: randomUuid(), method: 'Efectivo', amount: 0, reference: '' })
 const emptyLineFromProduct = (product, customer) => ({
-  id: crypto.randomUUID(),
+  id: randomUuid(),
   productId: product.id,
   sku: product.sku || '',
   model: product.model || product.brand || '',
@@ -65,7 +66,7 @@ export function InvoiceForm({ initialInvoice, duplicateOf, onDone }) {
     notesCustomer: source?.notesCustomer || '',
     notesInternal: source?.notesInternal || '',
     globalDiscount: source?.globalDiscount || 0,
-    items: source?.items?.map((item) => ({ ...item, id: crypto.randomUUID(), serials: item.serials || (item.serial ? [item.serial] : []) })) || [],
+    items: source?.items?.map((item) => ({ ...item, id: randomUuid(), serials: item.serials || (item.serial ? [item.serial] : []) })) || [],
     payments: source?.payments || [emptyPayment()],
   }))
 
@@ -149,7 +150,7 @@ export function InvoiceForm({ initialInvoice, duplicateOf, onDone }) {
     const sourcePayments = form.paymentPlan === 'fiado' ? [] : form.payments
     const payments = sourcePayments.length
       ? sourcePayments.map((payment, index) => ({
-          id: payment.id || crypto.randomUUID(),
+          id: payment.id || randomUuid(),
           method: payment.method || form.paymentMethod || 'Efectivo',
           amount: Number(payment.amount || (form.paymentPlan === 'contado' && sourcePayments.length === 1 && index === 0 ? totals.total : 0)),
           reference: payment.reference || '',

@@ -7,8 +7,9 @@ import { useERPStore } from '../../store/useERPStore'
 import { todayIso } from '../../lib/dateTime'
 import { currency } from '../../lib/formatters'
 import { ENTRY_TYPES } from './entryTypes'
+import { randomUuid } from '../../lib/id'
 
-const blankItem = () => ({ id: crypto.randomUUID(), productId: '', quantity: 1, cost: 0, serialText: '' })
+const blankItem = () => ({ id: randomUuid(), productId: '', quantity: 1, cost: 0, serialText: '' })
 
 function buildForm(entry) {
   if (!entry) {
@@ -21,7 +22,7 @@ function buildForm(entry) {
     supplierInvoice: entry.supplierInvoice,
     reference: entry.reference,
     items: entry.items.map((item) => ({
-      id: crypto.randomUUID(),
+      id: randomUuid(),
       productId: item.productId,
       quantity: item.quantity,
       cost: item.cost,

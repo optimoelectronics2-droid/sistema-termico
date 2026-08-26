@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
@@ -15,6 +15,7 @@ import { EntryLabelPrinter } from './EntryLabelPrinter'
 export function ProductEntry() {
   const toast = useToast()
   const entries = useERPStore((state) => state.productEntries)
+  const documentCounters = useERPStore((state) => state.documentCounters)
   const receiveProducts = useERPStore((state) => state.receiveProducts)
   const updateProductEntry = useERPStore((state) => state.updateProductEntry)
   const deleteProductEntry = useERPStore((state) => state.deleteProductEntry)
@@ -26,12 +27,18 @@ export function ProductEntry() {
   const [showReport, setShowReport] = useState(false)
   const [formNonce, setFormNonce] = useState(0)
   const [submitting, setSubmitting] = useState(false)
+  const submitLock = useRef(false)
 
   const editingEntry = useMemo(() => entries.find((entry) => entry.id === editingId) || null, [entries, editingId])
-  const nextNumber = useMemo(() => editingEntry ? editingEntry.number : nextEntryNumber(entries, todayIso()), [entries, editingEntry])
+  const nextNumber = useMemo(() => {
+    if (editingEntry) return editingEntry.number
+    const date = todayIso()
+    return nextEntryNumber(entries, date, documentCounters?.[`ENT-${date.slice(0, 4)}`])
+  }, [documentCounters, entries, editingEntry])
 
   function handleSubmit(payload) {
-    if (submitting) return
+    if (submitLock.current) return
+    submitLock.current = true
     setSubmitting(true)
     try {
       if (editingId) {
@@ -46,7 +53,10 @@ export function ProductEntry() {
     } catch (error) {
       toast.error(error.message)
     } finally {
-      setTimeout(() => setSubmitting(false), 400)
+      setTimeout(() => {
+        submitLock.current = false
+        setSubmitting(false)
+      }, 400)
     }
   }
 

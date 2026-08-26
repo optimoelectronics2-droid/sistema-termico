@@ -100,7 +100,7 @@ export default function LabelMassPrintDialog({ products, design, printerProfile,
               <th className="w-8 p-1"><input id="mass-print-select-all" type="checkbox" checked={selectedProducts.every(p => p._selected)} onChange={() => {
                 const all = !selectedProducts.every(p => p._selected)
                 setSelectedProducts(prev => prev.map(p => ({ ...p, _selected: all })))
-              }} className="accent-blue-500" aria-label="mass-print-select-all"  autoComplete="off" /></th>
+              }} className="accent-blue-500" aria-label="mass-print-select-all"  autoComplete="off"  name="mass-print-select-all" /></th>
               <th className="p-1">Producto</th>
               <th className="p-1">Codigo</th>
               <th className="w-16 p-1">Lectura</th>
@@ -111,11 +111,11 @@ export default function LabelMassPrintDialog({ products, design, printerProfile,
                 const vr = validationResults.find(r => r.product.id === p.id)
                 return (
                   <tr key={p.id} className="border-t border-white/5">
-                    <td className="p-1"><input id={`mass-print-select-${p.id}`} type="checkbox" checked={p._selected} onChange={() => toggleProduct(p.id)} className="accent-blue-500" aria-label={`mass-print-select-${p.id}`}  autoComplete="off" /></td>
+                    <td className="p-1"><input id={`mass-print-select-${p.id}`} type="checkbox" checked={p._selected} onChange={() => toggleProduct(p.id)} className="accent-blue-500" aria-label={`mass-print-select-${p.id}`}  autoComplete="off"  name="labelmassprintdialog-field" /></td>
                     <td className="p-1 truncate max-w-[200px]">{p.name || 'Producto'}</td>
                     <td className="p-1 font-mono text-white/60">{p.barcode || p.sku || p.id}</td>
                     <td className="p-1">{vr ? (vr.valid ? <span className="text-emerald-400">✓</span> : <span className="text-amber-400" title={vr.reason}>⚠</span>) : '-'}</td>
-                    <td className="p-1"><input id={`mass-print-qty-${p.id}`} type="number" min="1" max="999" value={p._qty} onChange={e => setQty(p.id, e.target.value)} className="w-16 rounded border border-white/20 bg-slate-700 px-1 py-0.5 text-white" aria-label={`mass-print-qty-${p.id}`}  autoComplete="off" /></td>
+                    <td className="p-1"><input id={`mass-print-qty-${p.id}`} type="number" min="1" max="999" value={p._qty} onChange={e => setQty(p.id, e.target.value)} className="w-16 rounded border border-white/20 bg-slate-700 px-1 py-0.5 text-white" aria-label={`mass-print-qty-${p.id}`}  autoComplete="off"  name="labelmassprintdialog-field" /></td>
                   </tr>
                 )
               })}

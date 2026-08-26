@@ -10,10 +10,11 @@ import { addDaysIso, todayIso } from '../../lib/dateTime'
 import { calculateInvoice, invoiceModes } from '../../lib/taxEngine'
 import { currency } from '../../lib/formatters'
 import { downloadQuotePdf, printQuotePdf } from '../../lib/quotePdf'
+import { randomUuid } from '../../lib/id'
 
 const today = todayIso
 const addDays = (days) => addDaysIso(today(), days)
-const blankLine = () => ({ id: crypto.randomUUID(), productId: '', sku: '', name: '', description: '', quantity: 1, price: 0, cost: 0, discount: 0, taxable: true })
+const blankLine = () => ({ id: randomUuid(), productId: '', sku: '', name: '', description: '', quantity: 1, price: 0, cost: 0, discount: 0, taxable: true })
 
 export function QuoteForm({ initialQuote, onDone }) {
   const toast = useToast()
@@ -34,7 +35,7 @@ export function QuoteForm({ initialQuote, onDone }) {
     date: initialQuote?.date || today(),
     validUntil: initialQuote?.validUntil || addDays(15),
     commercialTerms: initialQuote?.commercialTerms || 'Precios sujetos a disponibilidad. Esta cotizacion no constituye documento fiscal.',
-    items: initialQuote?.items?.map((item) => ({ ...blankLine(), ...item, id: crypto.randomUUID() })) || [blankLine()],
+    items: initialQuote?.items?.map((item) => ({ ...blankLine(), ...item, id: randomUuid() })) || [blankLine()],
     status: initialQuote?.status || 'Borrador',
   }))
   const customer = customers.find((item) => item.id === form.customerId)

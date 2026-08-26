@@ -21,14 +21,15 @@ import {
 } from '../lib/tenantEngine'
 import { buildCashCutReport, normalizeCashOpenInput } from '../lib/cashDeskEngine'
 import { addDaysIso, nowIso, todayIso } from '../lib/dateTime'
-import { nextEntryNumber } from '../lib/entryNumber'
+import { entryNumberSeq, nextEntryNumber } from '../lib/entryNumber'
+import { randomUuid, randomValues } from '../lib/id'
 import { sanitizeCashRegister, sanitizeOperationalData } from '../lib/realDataGuards'
 import { rebuildReports, auditIntegrity, detectDuplicates, reconcileInventory, reconcileFinancials, systemHealth } from '../lib/auditEngine'
 import { deleteRemoteDoc } from '../services/realtimeSync'
 
 const today = todayIso
 const now = nowIso
-const id = (prefix) => `${prefix}-${crypto.randomUUID()}`
+const id = (prefix) => `${prefix}-${randomUuid()}`
 const toNumber = (value) => {
   const num = Number(value)
   return Number.isFinite(num) ? num : 0
@@ -436,6 +437,13 @@ export const useERPStore = create(
       deleteProduct(productId, reason = 'Eliminacion manual') {
         const product = get().products.find((item) => item.id === productId)
         if (!product) throw new Error('El producto no existe.')
+        const state = get()
+        const hasHistory = state.productEntries.some((entry) => entry.items?.some((item) => item.productId === productId))
+          || state.invoices.some((invoice) => invoice.items?.some((item) => item.productId === productId))
+          || state.inventoryMovements.some((movement) => movement.productId === productId)
+        if (hasHistory) {
+          throw new Error('No se puede eliminar un producto con historial. Marquelo como Inactivo para conservar la trazabilidad de inventario y facturas.')
+        }
         set((state) => ({ products: state.products.filter((item) => item.id !== productId) }))
         get().refreshReportStats()
         get().addAudit('product.delete', 'Inventario', product, { reason })
@@ -539,9 +547,12 @@ export const useERPStore = create(
           return { productId: product.id, productName: product.name, quantity, cost, serials, subtotal: quantity * cost }
         })
 
+        const entryYear = String(date || today()).slice(0, 4) || String(new Date().getFullYear())
+        const entryCounterKey = `ENT-${entryYear}`
+        const entryNumber = nextEntryNumber(get().productEntries, date, get().documentCounters?.[entryCounterKey])
         const entry = scopeRecord({
           id: id('entry'),
-          number: nextEntryNumber(get().productEntries, today()),
+          number: entryNumber,
           supplierId,
           supplierName: get().suppliers.find((supplier) => supplier.id === supplierId)?.name || 'Sin proveedor',
           reference,
@@ -609,6 +620,7 @@ export const useERPStore = create(
           }),
           productEntries: [entry, ...state.productEntries],
           inventoryMovements: [...movements, ...state.inventoryMovements],
+          documentCounters: { ...(state.documentCounters || {}), [entryCounterKey]: entryNumberSeq(entry.number) + 1 },
           expenses: supplierInvoice
             ? [
                 scopeRecord({
@@ -1172,22 +1184,35 @@ export const useERPStore = create(
       },
 
       deleteInvoice(invoiceId, reason = '') {
-        const invoice = get().invoices.find((item) => item.id === invoiceId)
+        const state = get()
+        const invoice = state.invoices.find((item) => item.id === invoiceId)
         if (!invoice) throw new Error('La factura no existe.')
         const canDelete = invoice.status === 'draft' || invoice.ncfType === 'NO_FISCAL' || !invoice.ncf
         if (!canDelete) throw new Error('Las facturas fiscales emitidas se anulan, no se eliminan. Use anulacion con motivo.')
         if (invoice.status !== 'draft' && (!reason?.trim() || reason.trim().length < 10)) throw new Error('La eliminacion requiere un motivo de al menos 10 caracteres.')
+        const activeCreditNotes = state.creditNotes.filter((note) => note.invoiceId === invoiceId && note.status !== 'voided' && note.status !== 'anulada')
+        if (activeCreditNotes.length) throw new Error('No se puede eliminar una factura con notas de credito activas. Anule o elimine primero sus notas de credito.')
         const removesIssuedInvoice = invoice.status !== 'draft'
-        const nonCreditCash = removesIssuedInvoice ? getNonCreditAmount(invoice) : 0
-        const relatedPayments = get().payments.filter((payment) => payment.invoiceId === invoiceId && payment.status !== 'voided')
-        const paidCash = relatedPayments.reduce((sum, payment) => sum + toNumber(payment.amount), 0)
-        const reversalMovements = removesIssuedInvoice ? buildInvoiceReversalMovements(invoice, get().inventoryMovements, get().products, reason || 'Factura eliminada') : []
+        const alreadyReversed = invoice.status === 'voided' || invoice.status === 'anulada'
+          || state.inventoryMovements.some((movement) => movement.invoiceId === invoiceId && movement.type === inventoryMovementTypes.SALE_REVERSAL)
+        // A previously voided non-fiscal invoice has already returned stock and
+        // reversed cash. Deleting its record must only remove its traces.
+        const needsReversal = removesIssuedInvoice && !alreadyReversed
+        const nonCreditCash = needsReversal ? getNonCreditAmount(invoice) : 0
+        const relatedPayments = state.payments.filter((payment) => payment.invoiceId === invoiceId && payment.status !== 'voided')
+        const paidCash = needsReversal ? relatedPayments.reduce((sum, payment) => sum + toNumber(payment.amount), 0) : 0
+        const relatedPaymentIds = state.payments.filter((payment) => payment.invoiceId === invoiceId).map((payment) => payment.id)
+        const relatedReceivableIds = state.receivables.filter((item) => item.invoiceId === invoiceId).map((item) => item.id)
+        const relatedFinancialMovementIds = state.financialMovements.filter((movement) => movement.invoiceId === invoiceId || movement.documentId === invoiceId).map((movement) => movement.id)
+        const relatedInventoryMovementIds = state.inventoryMovements.filter((movement) => isInventoryMovementLinkedToInvoice(movement, invoice)).map((movement) => movement.id)
         set((state) => ({
           invoices: state.invoices.filter((item) => item.id !== invoiceId),
-          products: removesIssuedInvoice ? state.products.map((product) => restoreProductFromDeletedInvoice(product, invoice)) : state.products,
-          inventoryMovements: reversalMovements.length ? [...reversalMovements, ...state.inventoryMovements] : state.inventoryMovements,
-          payments: state.payments.map((payment) => (payment.invoiceId === invoiceId ? { ...payment, status: 'voided', updatedAt: now() } : payment)),
-          receivables: state.receivables.map((item) => (item.invoiceId === invoiceId ? { ...item, status: 'cancelled', balance: 0, updatedAt: now() } : item)),
+          products: needsReversal ? state.products.map((product) => restoreProductFromDeletedInvoice(product, invoice)) : state.products,
+          inventoryMovements: state.inventoryMovements.filter((movement) => !isInventoryMovementLinkedToInvoice(movement, invoice)),
+          payments: state.payments.filter((payment) => payment.invoiceId !== invoiceId),
+          receivables: state.receivables.filter((item) => item.invoiceId !== invoiceId),
+          financialMovements: state.financialMovements.filter((movement) => movement.invoiceId !== invoiceId && movement.documentId !== invoiceId),
+          conduces: state.conduces.map((deliveryNote) => deliveryNote.invoiceId === invoiceId ? { ...deliveryNote, status: 'open', invoiceId: '', updatedAt: now() } : deliveryNote),
           customers: state.receivables.some((r) => r.invoiceId === invoiceId)
             ? state.customers.map((customer) => {
                 const relatedReceivable = state.receivables.find((r) => r.invoiceId === invoiceId && r.customerId === customer.id)
@@ -1208,6 +1233,10 @@ export const useERPStore = create(
         get().refreshReportStats()
         get().addAudit('invoice.delete', 'Facturacion', invoice, reason || 'Borrador eliminado')
         deleteRemoteDoc('invoices', invoiceId).catch(() => {})
+        relatedPaymentIds.forEach((idValue) => deleteRemoteDoc('payments', idValue).catch(() => {}))
+        relatedReceivableIds.forEach((idValue) => deleteRemoteDoc('receivables', idValue).catch(() => {}))
+        relatedFinancialMovementIds.forEach((idValue) => deleteRemoteDoc('financialMovements', idValue).catch(() => {}))
+        relatedInventoryMovementIds.forEach((idValue) => deleteRemoteDoc('inventoryMovements', idValue).catch(() => {}))
       },
 
       duplicateInvoice(invoiceId) {
@@ -2696,6 +2725,10 @@ function restoreProductFromDeletedInvoice(product, invoice) {
   }
 }
 
+function isInventoryMovementLinkedToInvoice(movement, invoice) {
+  return movement?.invoiceId === invoice.id || movement?.documentId === invoice.id
+}
+
 function isCashMovementLinkedToInvoice(movement, invoice) {
   const concept = String(movement?.concept || '')
   const reference = String(movement?.reference || '')
@@ -2879,6 +2912,6 @@ function tryParseJson(raw) {
 function randomCode(length) {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   const values = new Uint32Array(length)
-  crypto.getRandomValues(values)
+  randomValues(values)
   return Array.from(values, (value) => alphabet[value % alphabet.length]).join('')
 }

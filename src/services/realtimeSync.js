@@ -22,6 +22,9 @@ const COLLECTION_NAMES = [
 const SINGLETON_NAMES = ['company', 'settings', 'cashRegister', 'categories', 'selectedBranch', 'documentCounters', 'reportStats', 'inventoryReports']
 
 const SYNC_DEBOUNCE_MS = 2000
+const MAX_DOCUMENT_BYTES = 950000
+const MAX_BATCH_BYTES = 8 * 1024 * 1024
+const MAX_BATCH_OPERATIONS = 450
 
 let activeUid = ''
 let unsubscribers = []
@@ -73,6 +76,10 @@ function docRef_ (uid, name, docId) {
 
 function oldStateDocRef(uid) {
   return doc(db, 'accounts', uid, 'erp', 'state')
+}
+
+function serializedSize(value) {
+  return JSON.stringify(value).length
 }
 
 // ─── Public API ──────────────────────────────────────────────────────
@@ -241,29 +248,36 @@ async function migrateFromOldState(uid) {
   const data = snapshot.data()?.state || {}
   let batch = writeBatch(db)
   let ops = 0
+  let batchBytes = 0
+
+  async function queueWrite(ref, value, label) {
+    const size = serializedSize(value)
+    if (size > MAX_DOCUMENT_BYTES) {
+      console.warn(`[realtimeSync] ${label} excede ${MAX_DOCUMENT_BYTES} bytes (${size}), se omite`)
+      return
+    }
+    if (ops > 0 && (ops >= MAX_BATCH_OPERATIONS || batchBytes + size > MAX_BATCH_BYTES)) {
+      await batch.commit()
+      batch = writeBatch(db)
+      ops = 0
+      batchBytes = 0
+    }
+    batch.set(ref, value)
+    ops++
+    batchBytes += size
+  }
 
   for (const name of COLLECTION_NAMES) {
     const items = Array.isArray(data[name]) ? data[name] : []
     for (const item of items) {
       if (!item?.id) continue
-      batch.set(docRef_(uid, name, item.id), sanitize(item))
-      ops++
-      if (ops >= 500) {
-        await batch.commit()
-        batch = writeBatch(db)
-        ops = 0
-      }
+      const sanitized = sanitize(item)
+      await queueWrite(docRef_(uid, name, item.id), sanitized, `${name}/${item.id}`)
     }
   }
   for (const name of SINGLETON_NAMES) {
     if (data[name] !== undefined) {
-      batch.set(docRef_(uid, '_singletons', name), { value: sanitize(data[name]), updatedAt: serverTimestamp() })
-      ops++
-      if (ops >= 500) {
-        await batch.commit()
-        batch = writeBatch(db)
-        ops = 0
-      }
+      await queueWrite(docRef_(uid, '_singletons', name), { value: sanitize(data[name]), updatedAt: serverTimestamp() }, `_singletons/${name}`)
     }
   }
 
@@ -288,14 +302,23 @@ function handleRemoteCollection(name, snapshot) {
 
   const localState = useERPStore.getState()
   const localItems = Array.isArray(localState[name]) ? localState[name] : []
-  let remoteItems = snapshot.docs
+  const snapshotItems = snapshot.docs
     .map((d) => ({ id: d.id, ...d.data() }))
     .filter((d) => !d.deletedAt)  // skip legacy soft-deleted docs
 
   // ── Explicitly-deleted items ──────────────────────────────────
-  // If the user explicitly deleted a document but deleteDoc failed
-  // (offline), filter it out so it is never re-imported.
+  // Keep an optimistic deletion hidden until a server-confirmed snapshot no
+  // longer contains it. Without this tombstone, a stale snapshot can restore
+  // the record between the local delete and Firestore's delete acknowledgement.
   const currentExplicit = explicitDeletes[name]
+  if (currentExplicit && !snapshot.metadata.fromCache) {
+    const serverIds = new Set(snapshotItems.map((item) => item.id))
+    currentExplicit.forEach((itemId) => {
+      if (!serverIds.has(itemId)) currentExplicit.delete(itemId)
+    })
+    if (currentExplicit.size === 0) delete explicitDeletes[name]
+  }
+  let remoteItems = snapshotItems
   if (currentExplicit && currentExplicit.size > 0) {
     remoteItems = remoteItems.filter((d) => !currentExplicit.has(d.id))
   }
@@ -428,6 +451,16 @@ async function writeDiff(uid, prev, next) {
 
   let batch = writeBatch(db)
   let ops = 0
+  let batchBytes = 0
+
+  async function flushIfNeeded(size) {
+    if (ops > 0 && (ops >= MAX_BATCH_OPERATIONS || batchBytes + size > MAX_BATCH_BYTES)) {
+      await batch.commit()
+      batch = writeBatch(db)
+      ops = 0
+      batchBytes = 0
+    }
+  }
 
   // Collections: diff and write individual docs (creates + updates only).
   // Deletions are NEVER performed by writeDiff — they happen ONLY via
@@ -445,14 +478,15 @@ async function writeDiff(uid, prev, next) {
       const prevItem = prevMap.get(item.id)
       if (!prevItem || stableStr(prevItem) !== stableStr(item)) {
         const sanitized = sanitize(item)
-        const payloadSize = JSON.stringify(sanitized).length
-        if (payloadSize > 950000) {
-          console.warn(`[realtimeSync] ${name}/${item.id} excede 950KB (${payloadSize}), se omite`)
+        const payloadSize = serializedSize(sanitized)
+        if (payloadSize > MAX_DOCUMENT_BYTES) {
+          console.warn(`[realtimeSync] ${name}/${item.id} excede ${MAX_DOCUMENT_BYTES} bytes (${payloadSize}), se omite`)
           continue
         }
+        await flushIfNeeded(payloadSize)
         batch.set(docRef_(uid, name, item.id), sanitized)
         ops++
-        if (ops >= 500) { await batch.commit(); batch = writeBatch(db); ops = 0 }
+        batchBytes += payloadSize
       }
     }
   }
@@ -464,16 +498,19 @@ async function writeDiff(uid, prev, next) {
     if (stableStr(prevVal) !== stableStr(nextVal)) {
       if (nextVal !== undefined && nextVal !== null) {
         const sanitizedVal = sanitize(nextVal)
-        if (JSON.stringify(sanitizedVal).length > 950000) {
-          console.warn(`[realtimeSync] singleton ${name} excede 950KB, se omite`)
+        const payloadSize = serializedSize(sanitizedVal)
+        if (payloadSize > MAX_DOCUMENT_BYTES) {
+          console.warn(`[realtimeSync] singleton ${name} excede ${MAX_DOCUMENT_BYTES} bytes, se omite`)
           continue
         }
+        await flushIfNeeded(payloadSize)
         batch.set(docRef_(uid, '_singletons', name), { value: sanitizedVal, updatedAt: serverTimestamp() })
+        batchBytes += payloadSize
       } else {
+        await flushIfNeeded(0)
         batch.delete(docRef_(uid, '_singletons', name))
       }
       ops++
-      if (ops >= 500) { await batch.commit(); batch = writeBatch(db); ops = 0 }
     }
   }
 
@@ -487,19 +524,17 @@ async function writeDiff(uid, prev, next) {
 
 export async function deleteRemoteDoc(collectionName, id) {
   const uid = activeUid
-  if (!uid) throw new Error('No hay sesion activa de sincronizacion.')
+  // Record the intent before any I/O so older snapshots cannot resurrect it.
+  if (!explicitDeletes[collectionName]) explicitDeletes[collectionName] = new Set()
+  explicitDeletes[collectionName].add(id)
+  if (!uid) {
+    console.warn(`[realtimeSync] ${collectionName}/${id} se elimino localmente sin una sesion de sincronizacion activa.`)
+    return false
+  }
   try {
     await deleteDoc(docRef_(uid, collectionName, id))
-    // Remove from tracking cache if previously added
-    if (explicitDeletes[collectionName]) {
-      explicitDeletes[collectionName].delete(id)
-      if (explicitDeletes[collectionName].size === 0) delete explicitDeletes[collectionName]
-    }
     return true
   } catch (error) {
-    // If offline, track so remote snapshot won't re-import the document
-    if (!explicitDeletes[collectionName]) explicitDeletes[collectionName] = new Set()
-    explicitDeletes[collectionName].add(id)
     console.error(`[realtimeSync] Error al eliminar ${collectionName}/${id}. Se evitara la reimportacion:`, error?.message)
     return false
   }
