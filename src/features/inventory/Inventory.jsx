@@ -328,15 +328,15 @@ function ProductForm({ product, categories, suppliers, onSave, saving }) {
 
         <section className="rounded-lg border p-3" style={{ borderColor: 'var(--line)' }}>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <CompactField label="Costo *" error={touched && errors.cost}><NumberInput value={draft.cost} onChange={(value) => set('cost', value)} /></CompactField>
-            <CompactField label="Precio *" error={touched && errors.price}><NumberInput value={draft.price} onChange={(value) => set('price', value)} /></CompactField>
-            <CompactField label="Mayor"><NumberInput value={draft.wholesalePrice} onChange={(value) => set('wholesalePrice', value)} /></CompactField>
-            <CompactField label="Tecnico"><NumberInput value={draft.technicianPrice} onChange={(value) => set('technicianPrice', value)} /></CompactField>
-            <CompactField label="Especial"><NumberInput value={draft.specialPrice} onChange={(value) => set('specialPrice', value)} /></CompactField>
-            <CompactField label="USD"><NumberInput value={draft.usdPrice} onChange={(value) => set('usdPrice', value)} /></CompactField>
-            <CompactField label={draft.id ? 'Stock actual' : 'Stock inicial'}><NumberInput value={draft.id ? draft.stock : draft.initialStock} onChange={(value) => draft.id ? set('stock', value) : set('initialStock', value)} /></CompactField>
-            <CompactField label="Stock minimo"><NumberInput value={draft.stockMin} onChange={(value) => set('stockMin', value)} /></CompactField>
-            <CompactField label="Stock maximo"><NumberInput value={draft.stockMax} onChange={(value) => set('stockMax', value)} /></CompactField>
+            <CompactField label="Costo *" error={touched && errors.cost}><NumberInput id="inventory-cost" name="inventoryCost" value={draft.cost} onChange={(value) => set('cost', value)} /></CompactField>
+            <CompactField label="Precio *" error={touched && errors.price}><NumberInput id="inventory-price" name="inventoryPrice" value={draft.price} onChange={(value) => set('price', value)} /></CompactField>
+            <CompactField label="Mayor"><NumberInput id="inventory-wholesale" name="inventoryWholesale" value={draft.wholesalePrice} onChange={(value) => set('wholesalePrice', value)} /></CompactField>
+            <CompactField label="Tecnico"><NumberInput id="inventory-technician" name="inventoryTechnician" value={draft.technicianPrice} onChange={(value) => set('technicianPrice', value)} /></CompactField>
+            <CompactField label="Especial"><NumberInput id="inventory-special" name="inventorySpecial" value={draft.specialPrice} onChange={(value) => set('specialPrice', value)} /></CompactField>
+            <CompactField label="USD"><NumberInput id="inventory-usd" name="inventoryUsd" value={draft.usdPrice} onChange={(value) => set('usdPrice', value)} /></CompactField>
+            <CompactField label={draft.id ? 'Stock actual' : 'Stock inicial'}><NumberInput id="inventory-stock" name="inventoryStock" value={draft.id ? draft.stock : draft.initialStock} onChange={(value) => draft.id ? set('stock', value) : set('initialStock', value)} /></CompactField>
+            <CompactField label="Stock minimo"><NumberInput id="inventory-stockMin" name="inventoryStockMin" value={draft.stockMin} onChange={(value) => set('stockMin', value)} /></CompactField>
+            <CompactField label="Stock maximo"><NumberInput id="inventory-stockMax" name="inventoryStockMax" value={draft.stockMax} onChange={(value) => set('stockMax', value)} /></CompactField>
             <CompactField label="Unidad"><select id="inventory-unit" value={draft.unit} onChange={(e) => set('unit', e.target.value)} className="input-dark text-sm"><option>Unidad</option><option>Caja</option><option>Kit</option><option>Par</option><option>Yarda</option><option>Metro</option></select></CompactField>
             <CompactField label="ITBIS"><select id="inventory-taxStatus" value={draft.taxStatus} onChange={(e) => set('taxStatus', e.target.value)} className="input-dark text-sm"><option value="no_tax">Sin ITBIS</option><option value="taxed">Con ITBIS</option><option value="exempt">Exento</option></select></CompactField>
             <CompactField label="Proveedor"><select id="inventory-supplierId" value={draft.supplierId} onChange={(e) => set('supplierId', e.target.value)} className="input-dark text-sm">{suppliers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></CompactField>
@@ -906,7 +906,7 @@ function CompactField({ label, children, error, className }) {
   return <label className={className}><span className="label-dark text-xs">{label}</span>{children}{error ? <span className="mt-0.5 block text-xs font-bold" style={{ color: 'rgb(252,165,165)' }}>{error}</span> : null}</label>
 }
 function NumberInput({ value, onChange, id, name }) {
-  return <input type="number" min="0" step="0.01" value={value ?? 0} onChange={(event) => onChange(Number(event.target.value))} className="input-dark" id={id} name={name} />
+  return <input type="number" min="0" step="0.01" value={value ?? 0} onChange={(event) => onChange(Number(event.target.value))} className="input-dark" id={id} name={name} autoComplete="off" />
 }
 function PreviewLine({ label, value }) {
   return <div className="flex justify-between gap-3"><span style={{ color: 'rgba(255,255,255,.45)' }}>{label}</span><b className="text-white">{value}</b></div>

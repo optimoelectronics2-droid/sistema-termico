@@ -174,7 +174,7 @@ function TicketInvoice({ invoice, company, customer, qr, title, showActions }) {
   return (
     <div className="space-y-3">
       {showActions ? <Actions invoice={invoice} customer={customer} company={company} /> : null}
-      <div id="invoice-preview" className="invoice-paper relative mx-auto w-[302px] overflow-hidden rounded-sm p-3 text-center font-mono text-[11px]">
+      <div id="invoice-preview-ticket" className="invoice-paper relative mx-auto w-[302px] overflow-hidden rounded-sm p-3 text-center font-mono text-[11px]">
         <p className="text-lg font-black">{company?.name || 'Empresa'}</p>
         {fiscal && company?.rnc ? <p>RNC: {company.rnc}</p> : null}
         {company?.address ? <p>{company.address}</p> : null}

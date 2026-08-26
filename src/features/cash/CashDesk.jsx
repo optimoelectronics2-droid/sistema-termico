@@ -314,7 +314,7 @@ export function CashDesk({ manualOnly = false }) {
           <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#243244] bg-[#111827] p-4">
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => shiftDay(-1)} className="rounded-lg border border-[#243244] bg-white/[0.04] p-2 text-white/60 transition hover:bg-white/[0.1] hover:text-white" aria-label="Dia anterior"><ChevronLeft size={16} /></button>
-              <input type="date" value={cutDate} onChange={(event) => setCutDate(event.target.value)} className="input-dark" aria-label="Dia del corte" />
+              <input id="cut-date" name="cutDate" type="date" value={cutDate} onChange={(event) => setCutDate(event.target.value)} className="input-dark" aria-label="Dia del corte" autoComplete="off" />
               <button type="button" onClick={() => shiftDay(1)} className="rounded-lg border border-[#243244] bg-white/[0.04] p-2 text-white/60 transition hover:bg-white/[0.1] hover:text-white" aria-label="Dia siguiente"><ChevronRight size={16} /></button>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -409,10 +409,10 @@ export function CashDesk({ manualOnly = false }) {
         </div>
 
         <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <label><span className="label-dark">Desde</span><input type="date" value={manualFrom} onChange={(event) => setManualFrom(event.target.value)} className="input-dark" aria-label="manual-from" /></label>
-          <label><span className="label-dark">Hasta</span><input type="date" value={manualTo} onChange={(event) => setManualTo(event.target.value)} className="input-dark" aria-label="manual-to" /></label>
-          <label><span className="label-dark">Metodo</span><select value={manualMethod} onChange={(event) => setManualMethod(event.target.value)} className="input-dark" aria-label="manual-method"><option value="all">Todos</option>{paymentMethods.map((method) => <option key={method}>{method}</option>)}</select></label>
-          <label><span className="label-dark">Categoria</span><select value={manualCategory} onChange={(event) => setManualCategory(event.target.value)} className="input-dark" aria-label="manual-category"><option value="all">Todas</option>{movementCategories.map((category) => <option key={category}>{category}</option>)}</select></label>
+          <label><span className="label-dark">Desde</span><input id="manual-from" name="manualFrom" type="date" value={manualFrom} onChange={(event) => setManualFrom(event.target.value)} className="input-dark" aria-label="manual-from" autoComplete="off" /></label>
+          <label><span className="label-dark">Hasta</span><input id="manual-to" name="manualTo" type="date" value={manualTo} onChange={(event) => setManualTo(event.target.value)} className="input-dark" aria-label="manual-to" autoComplete="off" /></label>
+          <label><span className="label-dark">Metodo</span><select id="manual-method" name="manualMethod" value={manualMethod} onChange={(event) => setManualMethod(event.target.value)} className="input-dark" aria-label="manual-method" autoComplete="off"><option value="all">Todos</option>{paymentMethods.map((method) => <option key={method}>{method}</option>)}</select></label>
+          <label><span className="label-dark">Categoria</span><select id="manual-category" name="manualCategory" value={manualCategory} onChange={(event) => setManualCategory(event.target.value)} className="input-dark" aria-label="manual-category" autoComplete="off"><option value="all">Todas</option>{movementCategories.map((category) => <option key={category}>{category}</option>)}</select></label>
         </div>
 
         <div className="movement-kpi-strip mb-4">
@@ -469,8 +469,8 @@ export function CashDesk({ manualOnly = false }) {
       <Modal open={historyModal} onClose={() => setHistoryModal(false)} title="Historial de movimientos de caja" size="xl">
         <div className="space-y-4">
           <div className="grid gap-3 md:grid-cols-2">
-            <label><span className="label-dark">Desde</span><input type="date" value={historyRange.from} onChange={(event) => setHistoryRange((state) => ({ ...state, from: event.target.value }))} className="input-dark" /></label>
-            <label><span className="label-dark">Hasta</span><input type="date" value={historyRange.to} onChange={(event) => setHistoryRange((state) => ({ ...state, to: event.target.value }))} className="input-dark" /></label>
+            <label><span className="label-dark">Desde</span><input id="history-from" name="historyFrom" type="date" value={historyRange.from} onChange={(event) => setHistoryRange((state) => ({ ...state, from: event.target.value }))} className="input-dark" autoComplete="off" /></label>
+            <label><span className="label-dark">Hasta</span><input id="history-to" name="historyTo" type="date" value={historyRange.to} onChange={(event) => setHistoryRange((state) => ({ ...state, to: event.target.value }))} className="input-dark" autoComplete="off" /></label>
           </div>
           <DataTable data={historyMovements} columns={movementColumns(removeMovement)} initialPageSize={10} emptyText="Sin movimientos en el rango." searchPlaceholder="Buscar concepto, metodo, categoria..." />
         </div>

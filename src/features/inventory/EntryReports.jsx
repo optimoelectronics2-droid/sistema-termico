@@ -541,13 +541,13 @@ export function EntryReports() {
 
           {periodMode === 'range' ? (
             <>
-              <label className="block"><span className="label-dark">Desde</span><input type="date" value={filters.dateFrom || ''} onChange={(e) => setFilter('dateFrom', e.target.value)} className="input-dark" /></label>
-              <label className="block"><span className="label-dark">Hasta</span><input type="date" value={filters.dateTo || ''} onChange={(e) => setFilter('dateTo', e.target.value)} className="input-dark" /></label>
+              <label className="block"><span className="label-dark">Desde</span><input id="entry-report-date-from" name="entryReportDateFrom" type="date" value={filters.dateFrom || ''} onChange={(e) => setFilter('dateFrom', e.target.value)} className="input-dark" autoComplete="off" /></label>
+              <label className="block"><span className="label-dark">Hasta</span><input id="entry-report-date-to" name="entryReportDateTo" type="date" value={filters.dateTo || ''} onChange={(e) => setFilter('dateTo', e.target.value)} className="input-dark" autoComplete="off" /></label>
             </>
           ) : (
             <label className="block">
               <span className="label-dark">Buscar fecha de {MODE_LABELS[periodMode]}</span>
-              <input type="date" value={focusDate} onChange={(e) => jumpToDate(e.target.value)} className="input-dark" />
+              <input id="entry-report-focus-date" name="entryReportFocusDate" type="date" value={focusDate} onChange={(e) => jumpToDate(e.target.value)} className="input-dark" autoComplete="off" />
             </label>
           )}
 
@@ -558,12 +558,12 @@ export function EntryReports() {
 
         {showExtraFilters ? (
           <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <label><span className="label-dark">Proveedor</span><select value={filters.supplierId} onChange={(e) => setFilter('supplierId', e.target.value)} className="input-dark"><option value="all">Todos</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label>
-            <label><span className="label-dark">Tipo de entrada</span><select value={filters.type} onChange={(e) => setFilter('type', e.target.value)} className="input-dark"><option value="all">Todos</option>{ENTRY_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}</select></label>
+            <label><span className="label-dark">Proveedor</span><select id="entry-report-supplier" name="entryReportSupplier" value={filters.supplierId} onChange={(e) => setFilter('supplierId', e.target.value)} className="input-dark" autoComplete="off"><option value="all">Todos</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label>
+            <label><span className="label-dark">Tipo de entrada</span><select id="entry-report-type" name="entryReportType" value={filters.type} onChange={(e) => setFilter('type', e.target.value)} className="input-dark" autoComplete="off"><option value="all">Todos</option>{ENTRY_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}</select></label>
             <label><span className="label-dark">Busqueda</span>
               <div className="relative">
                 <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/35" />
-                <input value={filters.query} onChange={(e) => setFilter('query', e.target.value)} className="input-dark pl-9" placeholder="Proveedor, referencia, factura, producto..." />
+                <input id="entry-report-query" name="entryReportQuery" value={filters.query} onChange={(e) => setFilter('query', e.target.value)} className="input-dark pl-9" placeholder="Proveedor, referencia, factura, producto..." autoComplete="off" />
               </div>
             </label>
           </div>
