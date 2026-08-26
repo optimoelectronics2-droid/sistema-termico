@@ -1004,6 +1004,7 @@ export const useERPStore = create(
           updatedAt: now(),
         }
         const nextCredit = getCreditAmount(nextInvoice)
+        const previousReceivable = state.receivables.find((item) => item.invoiceId === invoiceId)
         if (nextCredit > 0) {
           if (previous.customerId === nextInvoice.customerId) {
             const previousBalance = moneyValue(previousReceivable?.balance || 0)
@@ -1015,7 +1016,6 @@ export const useERPStore = create(
         }
         const previousNonCredit = getNonCreditAmount(previous)
         const nextNonCredit = getNonCreditAmount(nextInvoice)
-        const previousReceivable = state.receivables.find((item) => item.invoiceId === invoiceId)
         var carriedPayments = previous.customerId === nextInvoice.customerId
           ? (previousReceivable?.payments || []).filter(function(p) { return p.origin !== 'initial' && !['voided', 'deleted', 'cancelled'].includes(String(p.status || '').toLowerCase()) })
           : []
