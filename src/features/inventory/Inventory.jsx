@@ -204,12 +204,12 @@ export function Inventory() {
         <div className="flex flex-wrap items-center gap-2">
           <label className="module-search-bar">
             <Search size={16} style={{ color: 'var(--text-tertiary)' }} />
-            <input id="inv-query" name="inv-query" value={filters.query} onChange={(e) => setFilters((s) => ({ ...s, query: e.target.value }))} placeholder="Nombre, SKU, codigo, IMEI, serial, marca" className="min-w-0 flex-1" />
+            <input id="inv-query" name="inv-query" value={filters.query} onChange={(e) => setFilters((s) => ({ ...s, query: e.target.value }))} placeholder="Nombre, SKU, codigo, IMEI, serial, marca" className="min-w-0 flex-1"  autoComplete="off" />
           </label>
-          <select id="inv-category" name="inv-category" value={filters.category} onChange={(e) => setFilters((s) => ({ ...s, category: e.target.value }))} className="input-dark max-w-44" aria-label="inv-category"><option value="all">Todas las categorias</option>{categories.map((c) => <option key={c}>{c}</option>)}</select>
-          <select id="inv-brand" name="inv-brand" value={filters.brand} onChange={(e) => setFilters((s) => ({ ...s, brand: e.target.value }))} className="input-dark max-w-40" aria-label="inv-brand"><option value="all">Todas las marcas</option>{brands.map((b) => <option key={b}>{b}</option>)}</select>
-          <select id="inv-tax" name="inv-tax" value={filters.tax} onChange={(e) => setFilters((s) => ({ ...s, tax: e.target.value }))} className="input-dark max-w-32" aria-label="inv-tax"><option value="all">ITBIS todos</option><option value="taxed">Con ITBIS</option><option value="no_tax">Sin ITBIS</option><option value="exempt">Exento</option></select>
-          <select id="inv-sort" name="inv-sort" value={inventorySort} onChange={(e) => setInventorySort(e.target.value)} className="input-dark max-w-44" aria-label="inv-sort"><option value="category">Orden: categoria</option><option value="stock">Stock</option><option value="quantity">Cantidad</option><option value="value">Valor inventario</option></select>
+          <select id="inv-category" name="inv-category" value={filters.category} onChange={(e) => setFilters((s) => ({ ...s, category: e.target.value }))} className="input-dark max-w-44" aria-label="inv-category" autoComplete="off"><option value="all">Todas las categorias</option>{categories.map((c) => <option key={c}>{c}</option>)}</select>
+          <select id="inv-brand" name="inv-brand" value={filters.brand} onChange={(e) => setFilters((s) => ({ ...s, brand: e.target.value }))} className="input-dark max-w-40" aria-label="inv-brand" autoComplete="off"><option value="all">Todas las marcas</option>{brands.map((b) => <option key={b}>{b}</option>)}</select>
+          <select id="inv-tax" name="inv-tax" value={filters.tax} onChange={(e) => setFilters((s) => ({ ...s, tax: e.target.value }))} className="input-dark max-w-32" aria-label="inv-tax" autoComplete="off"><option value="all">ITBIS todos</option><option value="taxed">Con ITBIS</option><option value="no_tax">Sin ITBIS</option><option value="exempt">Exento</option></select>
+          <select id="inv-sort" name="inv-sort" value={inventorySort} onChange={(e) => setInventorySort(e.target.value)} className="input-dark max-w-44" aria-label="inv-sort" autoComplete="off"><option value="category">Orden: categoria</option><option value="stock">Stock</option><option value="quantity">Cantidad</option><option value="value">Valor inventario</option></select>
           <Button variant={filters.low ? 'danger' : 'ghost'} onClick={() => setFilters((s) => ({ ...s, low: !s.low }))}>Stock bajo</Button>
           <Button icon={Download} variant="ghost" onClick={exportInventory}>Excel</Button>
           <Button icon={Printer} variant="ghost" onClick={exportInventoryPdf}>PDF</Button>
@@ -219,11 +219,11 @@ export function Inventory() {
         <div className="mt-4 flex flex-col gap-2 rounded-lg border text-xs font-bold sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: 'var(--line)', color: 'var(--text-secondary)', background: 'var(--bg-table-header)', padding: '12px 16px' }}>
           <span>{sortedInventory.length} producto(s) encontrados · mostrando {visibleInventory.length} · pagina {safeInventoryPage} de {inventoryTotalPages}</span>
           <div className="flex flex-wrap items-center gap-2">
-            <select id="inv-page-size" name="inv-page-size" value={inventoryPageSize} onChange={(event) => setInventoryPageSize(Number(event.target.value))} className="input-dark max-w-36 py-1.5 text-xs" aria-label="inv-page-size">
+            <select id="inv-page-size" name="inv-page-size" value={inventoryPageSize} onChange={(event) => setInventoryPageSize(Number(event.target.value))} className="input-dark max-w-36 py-1.5 text-xs" aria-label="inv-page-size" autoComplete="off">
               {[12, 20, 36, 60].map((option) => <option key={option} value={option}>{option} por pagina</option>)}
             </select>
             <Button icon={ChevronLeft} variant="ghost" className="px-2 py-1.5 text-xs" disabled={safeInventoryPage <= 1} onClick={() => setInventoryPage((page) => Math.max(1, page - 1))} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--line)' }}>Anterior</Button>
-            <input id="inv-page" name="inv-page" type="number" min={1} max={inventoryTotalPages} value={safeInventoryPage} onChange={(event) => { const value = Number(event.target.value); if (value >= 1 && value <= inventoryTotalPages) setInventoryPage(value) }} className="input-dark w-16 py-1 text-center text-xs" aria-label="inv-page" />
+            <input id="inv-page" name="inv-page" type="number" min={1} max={inventoryTotalPages} value={safeInventoryPage} onChange={(event) => { const value = Number(event.target.value); if (value >= 1 && value <= inventoryTotalPages) setInventoryPage(value) }} className="input-dark w-16 py-1 text-center text-xs" aria-label="inv-page"  autoComplete="off" />
             <Button icon={ChevronRight} variant="ghost" className="px-2 py-1.5 text-xs" disabled={safeInventoryPage >= inventoryTotalPages} onClick={() => setInventoryPage((page) => Math.min(inventoryTotalPages, page + 1))} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--line)' }}>Siguiente</Button>
           </div>
         </div>
@@ -241,11 +241,11 @@ export function Inventory() {
 
       <Modal open={Boolean(adjusting)} onClose={() => setAdjusting(null)} title={`Ajustar stock: ${adjusting?.name || ''}`} size="md" footer={<div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setAdjusting(null)}>Cancelar</Button><Button variant="success" onClick={saveAdjust}>Guardar ajuste</Button></div>}>
         <div className="grid gap-3 md:grid-cols-2">
-          <label><span className="label-dark">Tipo</span><select id="inv-adjust-type" name="inv-adjust-type" value={adjust.type} onChange={(e) => setAdjust((s) => ({ ...s, type: e.target.value }))} className="input-dark"><option value="incremento">Incremento</option><option value="decremento">Decremento</option></select></label>
-          <label><span className="label-dark">Cantidad</span><input id="inv-adjust-quantity" name="inv-adjust-quantity" type="number" min="1" value={adjust.quantity} onChange={(e) => setAdjust((s) => ({ ...s, quantity: Number(e.target.value) }))} className="input-dark" /></label>
-          <label><span className="label-dark">Motivo</span><select id="inv-adjust-reason" name="inv-adjust-reason" value={adjust.reason} onChange={(e) => setAdjust((s) => ({ ...s, reason: e.target.value }))} className="input-dark"><option>Conteo fisico</option><option>Merma</option><option>Daño</option><option>Robo</option><option>Error administrativo</option><option>Otro</option></select></label>
-          <label><span className="label-dark">Nota</span><input id="inv-adjust-note" name="inv-adjust-note" value={adjust.note} onChange={(e) => setAdjust((s) => ({ ...s, note: e.target.value }))} className="input-dark" /></label>
-          {adjusting?.requiresSerial ? <label className="md:col-span-2"><span className="label-dark">Seriales / IMEI del ajuste</span><textarea id="inv-adjust-serials" name="inv-adjust-serials" value={adjust.serialText} onChange={(e) => setAdjust((s) => ({ ...s, serialText: e.target.value }))} className="input-dark min-h-24" placeholder="Uno por linea o coma" /><span className="mt-1 block text-xs" style={{ color: 'rgba(255,255,255,.4)' }}>Para decrementos deben existir como disponibles; para incrementos no pueden existir en otro historial.</span></label> : null}
+          <label><span className="label-dark">Tipo</span><select id="inv-adjust-type" name="inv-adjust-type" value={adjust.type} onChange={(e) => setAdjust((s) => ({ ...s, type: e.target.value }))} className="input-dark" autoComplete="off"><option value="incremento">Incremento</option><option value="decremento">Decremento</option></select></label>
+          <label><span className="label-dark">Cantidad</span><input id="inv-adjust-quantity" name="inv-adjust-quantity" type="number" min="1" value={adjust.quantity} onChange={(e) => setAdjust((s) => ({ ...s, quantity: Number(e.target.value) }))} className="input-dark"  autoComplete="off" /></label>
+          <label><span className="label-dark">Motivo</span><select id="inv-adjust-reason" name="inv-adjust-reason" value={adjust.reason} onChange={(e) => setAdjust((s) => ({ ...s, reason: e.target.value }))} className="input-dark" autoComplete="off"><option>Conteo fisico</option><option>Merma</option><option>Daño</option><option>Robo</option><option>Error administrativo</option><option>Otro</option></select></label>
+          <label><span className="label-dark">Nota</span><input id="inv-adjust-note" name="inv-adjust-note" value={adjust.note} onChange={(e) => setAdjust((s) => ({ ...s, note: e.target.value }))} className="input-dark"  autoComplete="off" /></label>
+          {adjusting?.requiresSerial ? <label className="md:col-span-2"><span className="label-dark">Seriales / IMEI del ajuste</span><textarea id="inv-adjust-serials" name="inv-adjust-serials" value={adjust.serialText} onChange={(e) => setAdjust((s) => ({ ...s, serialText: e.target.value }))} className="input-dark min-h-24" placeholder="Uno por linea o coma"  autoComplete="off" /><span className="mt-1 block text-xs" style={{ color: 'rgba(255,255,255,.4)' }}>Para decrementos deben existir como disponibles; para incrementos no pueden existir en otro historial.</span></label> : null}
         </div>
       </Modal>
       <Modal open={Boolean(labeling)} onClose={() => setLabeling(null)} title="Imprimir etiquetas" size="lg">
@@ -313,17 +313,17 @@ function ProductForm({ product, categories, suppliers, onSave, saving }) {
       <div className="space-y-4">
         <section className="rounded-lg border p-3" style={{ borderColor: 'var(--line)' }}>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            <CompactField label="Nombre *" error={touched && errors.name}><input id="inventory-name" value={draft.name} onChange={(e) => set('name', e.target.value)} className="input-dark text-sm" placeholder="Ej. iPhone 15 Pro 256GB" /></CompactField>
-            <CompactField label="Categoria *" error={touched && errors.category}><input id="inventory-category" list="category-options" value={draft.category} onChange={(e) => set('category', e.target.value)} className="input-dark text-sm" placeholder="Categoria" /><datalist id="category-options">{categories.map((item) => <option key={item} value={item} />)}</datalist></CompactField>
-            <CompactField label="Marca"><input id="inventory-brand" value={draft.brand} onChange={(e) => set('brand', e.target.value)} className="input-dark text-sm" placeholder="Apple, Samsung..." /></CompactField>
-            <CompactField label="Modelo"><input id="inventory-model" value={draft.model} onChange={(e) => set('model', e.target.value)} className="input-dark text-sm" /></CompactField>
-            <CompactField label="SKU"><input id="inventory-sku" value={draft.sku} onChange={(e) => set('sku', e.target.value)} className="input-dark text-sm" placeholder="Autogenerado" /></CompactField>
-            <CompactField label="Codigo barras"><input id="inventory-barcode" value={draft.barcode} onChange={(e) => set('barcode', e.target.value)} className="input-dark text-sm" /></CompactField>
-            <CompactField label="Color"><input id="inventory-color" value={draft.color} onChange={(e) => set('color', e.target.value)} className="input-dark text-sm" /></CompactField>
-            <CompactField label="Capacidad/talla"><input id="inventory-capacity" value={draft.capacity} onChange={(e) => set('capacity', e.target.value)} className="input-dark text-sm" /></CompactField>
-            <CompactField label="Ubicacion"><input id="inventory-location" value={draft.location} onChange={(e) => set('location', e.target.value)} className="input-dark text-sm" placeholder="A1, vitrina..." /></CompactField>
+            <CompactField label="Nombre *" error={touched && errors.name}><input id="inventory-name" value={draft.name} onChange={(e) => set('name', e.target.value)} className="input-dark text-sm" placeholder="Ej. iPhone 15 Pro 256GB"  autoComplete="off" /></CompactField>
+            <CompactField label="Categoria *" error={touched && errors.category}><input id="inventory-category" list="category-options" value={draft.category} onChange={(e) => set('category', e.target.value)} className="input-dark text-sm" placeholder="Categoria"  autoComplete="off" /><datalist id="category-options">{categories.map((item) => <option key={item} value={item} />)}</datalist></CompactField>
+            <CompactField label="Marca"><input id="inventory-brand" value={draft.brand} onChange={(e) => set('brand', e.target.value)} className="input-dark text-sm" placeholder="Apple, Samsung..."  autoComplete="off" /></CompactField>
+            <CompactField label="Modelo"><input id="inventory-model" value={draft.model} onChange={(e) => set('model', e.target.value)} className="input-dark text-sm"  autoComplete="off" /></CompactField>
+            <CompactField label="SKU"><input id="inventory-sku" value={draft.sku} onChange={(e) => set('sku', e.target.value)} className="input-dark text-sm" placeholder="Autogenerado"  autoComplete="off" /></CompactField>
+            <CompactField label="Codigo barras"><input id="inventory-barcode" value={draft.barcode} onChange={(e) => set('barcode', e.target.value)} className="input-dark text-sm"  autoComplete="off" /></CompactField>
+            <CompactField label="Color"><input id="inventory-color" value={draft.color} onChange={(e) => set('color', e.target.value)} className="input-dark text-sm"  autoComplete="off" /></CompactField>
+            <CompactField label="Capacidad/talla"><input id="inventory-capacity" value={draft.capacity} onChange={(e) => set('capacity', e.target.value)} className="input-dark text-sm"  autoComplete="off" /></CompactField>
+            <CompactField label="Ubicacion"><input id="inventory-location" value={draft.location} onChange={(e) => set('location', e.target.value)} className="input-dark text-sm" placeholder="A1, vitrina..."  autoComplete="off" /></CompactField>
           </div>
-          <CompactField label="Descripcion" className="mt-2"><textarea id="inventory-description" value={draft.description} onChange={(e) => set('description', e.target.value)} className="input-dark min-h-16 text-sm" /></CompactField>
+          <CompactField label="Descripcion" className="mt-2"><textarea id="inventory-description" value={draft.description} onChange={(e) => set('description', e.target.value)} className="input-dark min-h-16 text-sm"  autoComplete="off" /></CompactField>
         </section>
 
         <section className="rounded-lg border p-3" style={{ borderColor: 'var(--line)' }}>
@@ -337,16 +337,16 @@ function ProductForm({ product, categories, suppliers, onSave, saving }) {
             <CompactField label={draft.id ? 'Stock actual' : 'Stock inicial'}><NumberInput id="inventory-stock" name="inventoryStock" value={draft.id ? draft.stock : draft.initialStock} onChange={(value) => draft.id ? set('stock', value) : set('initialStock', value)} /></CompactField>
             <CompactField label="Stock minimo"><NumberInput id="inventory-stockMin" name="inventoryStockMin" value={draft.stockMin} onChange={(value) => set('stockMin', value)} /></CompactField>
             <CompactField label="Stock maximo"><NumberInput id="inventory-stockMax" name="inventoryStockMax" value={draft.stockMax} onChange={(value) => set('stockMax', value)} /></CompactField>
-            <CompactField label="Unidad"><select id="inventory-unit" value={draft.unit} onChange={(e) => set('unit', e.target.value)} className="input-dark text-sm"><option>Unidad</option><option>Caja</option><option>Kit</option><option>Par</option><option>Yarda</option><option>Metro</option></select></CompactField>
-            <CompactField label="ITBIS"><select id="inventory-taxStatus" value={draft.taxStatus} onChange={(e) => set('taxStatus', e.target.value)} className="input-dark text-sm"><option value="no_tax">Sin ITBIS</option><option value="taxed">Con ITBIS</option><option value="exempt">Exento</option></select></CompactField>
-            <CompactField label="Proveedor"><select id="inventory-supplierId" value={draft.supplierId} onChange={(e) => set('supplierId', e.target.value)} className="input-dark text-sm">{suppliers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></CompactField>
+            <CompactField label="Unidad"><select id="inventory-unit" value={draft.unit} onChange={(e) => set('unit', e.target.value)} className="input-dark text-sm" autoComplete="off"><option>Unidad</option><option>Caja</option><option>Kit</option><option>Par</option><option>Yarda</option><option>Metro</option></select></CompactField>
+            <CompactField label="ITBIS"><select id="inventory-taxStatus" value={draft.taxStatus} onChange={(e) => set('taxStatus', e.target.value)} className="input-dark text-sm" autoComplete="off"><option value="no_tax">Sin ITBIS</option><option value="taxed">Con ITBIS</option><option value="exempt">Exento</option></select></CompactField>
+            <CompactField label="Proveedor"><select id="inventory-supplierId" value={draft.supplierId} onChange={(e) => set('supplierId', e.target.value)} className="input-dark text-sm" autoComplete="off">{suppliers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></CompactField>
           </div>
           <div className="mt-2 flex items-center gap-3">
             <label className="flex items-center gap-2 text-xs font-bold" style={{ color: 'rgba(255,255,255,.7)' }}>
-              <input id="inventory-requiresSerial" type="checkbox" checked={draft.requiresSerial} onChange={(e) => set('requiresSerial', e.target.checked)} />
+              <input id="inventory-requiresSerial" type="checkbox" checked={draft.requiresSerial} onChange={(e) => set('requiresSerial', e.target.checked)}  autoComplete="off" />
               Serial / IMEI
             </label>
-            {draft.requiresSerial ? <input id="inventory-serialsText" value={draft.serialsText} onChange={(e) => set('serialsText', e.target.value)} className="input-dark flex-1 text-sm" placeholder="Seriales: uno por linea o coma" aria-label="inventory-serialsText" /> : null}
+            {draft.requiresSerial ? <input id="inventory-serialsText" value={draft.serialsText} onChange={(e) => set('serialsText', e.target.value)} className="input-dark flex-1 text-sm" placeholder="Seriales: uno por linea o coma" aria-label="inventory-serialsText"  autoComplete="off" /> : null}
           </div>
         </section>
       </div>
@@ -354,7 +354,7 @@ function ProductForm({ product, categories, suppliers, onSave, saving }) {
       <aside className="space-y-3">
         <div className="rounded-lg border p-3 text-center" style={{ borderColor: 'var(--line)' }}>
           <ImagePlus className="mx-auto mb-1" size={24} style={{ color: 'rgba(255,255,255,.3)' }} />
-          <input id="inventory-image" value={draft.image || ''} onChange={(e) => set('image', e.target.value)} className="input-dark mt-1 text-sm" placeholder="URL imagen" aria-label="inventory-image" />
+          <input id="inventory-image" value={draft.image || ''} onChange={(e) => set('image', e.target.value)} className="input-dark mt-1 text-sm" placeholder="URL imagen" aria-label="inventory-image"  autoComplete="off" />
         </div>
         <div className="space-y-1 rounded-lg border p-3 text-xs" style={{ borderColor: 'var(--line)' }}>
           <PreviewLine label="SKU" value={draft.sku || 'Autogenerado'} />
@@ -723,20 +723,20 @@ function BarcodeLabelPrinter({ product }) {
   return (
     <div className="space-y-4">
       <div className="no-print grid gap-3 sm:grid-cols-2 md:grid-cols-[1fr_130px_120px_80px_auto_auto]">
-        <label><span className="label-dark">Codigo a imprimir</span><select id="label-source" value={source} onChange={(event) => setSource(event.target.value)} className="input-dark"><option value="barcode" disabled={!product.barcode}>Codigo de barras</option><option value="sku" disabled={!product.sku}>SKU</option><option value="id">ID interno</option><option value="manual">Manual</option></select></label>
-        <label><span className="label-dark">Tamaño</span><select id="label-size" value={labelSize.id} onChange={(event) => setLabelSize(LABEL_SIZES.find((s) => s.id === event.target.value) || LABEL_SIZES[0])} className="input-dark">{LABEL_SIZES.map((size) => <option key={size.id} value={size.id}>{size.name}</option>)}</select></label>
-        <label><span className="label-dark">Cantidad</span><input id="label-quantity" type="number" min="1" max="120" value={quantityMode === 'stock' ? qty : quantity} onChange={(event) => setQuantity(event.target.value)} disabled={quantityMode === 'stock'} className="input-dark" /></label>
-        <label className="flex items-center gap-2 pt-6 text-sm"><input id="label-showPrice" type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)} /> Precio</label>
-        <label><span className="label-dark">Metodo</span><select id="label-printMode" value={printMode} onChange={(event) => setPrintMode(event.target.value)} className="input-dark">{ALL_PRINT_MODES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
+        <label><span className="label-dark">Codigo a imprimir</span><select id="label-source" value={source} onChange={(event) => setSource(event.target.value)} className="input-dark" autoComplete="off"><option value="barcode" disabled={!product.barcode}>Codigo de barras</option><option value="sku" disabled={!product.sku}>SKU</option><option value="id">ID interno</option><option value="manual">Manual</option></select></label>
+        <label><span className="label-dark">Tamaño</span><select id="inventory-label-size" value={labelSize.id} onChange={(event) => setLabelSize(LABEL_SIZES.find((s) => s.id === event.target.value) || LABEL_SIZES[0])} className="input-dark" autoComplete="off">{LABEL_SIZES.map((size) => <option key={size.id} value={size.id}>{size.name}</option>)}</select></label>
+        <label><span className="label-dark">Cantidad</span><input id="label-quantity" type="number" min="1" max="120" value={quantityMode === 'stock' ? qty : quantity} onChange={(event) => setQuantity(event.target.value)} disabled={quantityMode === 'stock'} className="input-dark"  autoComplete="off" /></label>
+        <label className="flex items-center gap-2 pt-6 text-sm"><input id="label-showPrice" type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)}  autoComplete="off" /> Precio</label>
+        <label><span className="label-dark">Metodo</span><select id="label-printMode" value={printMode} onChange={(event) => setPrintMode(event.target.value)} className="input-dark" autoComplete="off">{ALL_PRINT_MODES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
         <Button icon={Printer} variant="primary" className="self-end" onClick={handlePrint} disabled={!code || qty < 1}>
           {printMode === 'browser' ? 'Imprimir' : printMode === 'usb' || printMode === 'escpos-usb' ? 'Enviar a USB' : 'Descargar'}
         </Button>
       </div>
       <div className="no-print flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          {source === 'manual' ? <label className="flex items-center gap-1"><span className="text-xs text-white/50">Codigo manual</span><input id="label-manualCode" value={manualCode} onChange={(event) => setManualCode(event.target.value)} className="input-dark w-36" placeholder="Escanee o escriba" /></label> : <div className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'var(--line)', background: 'rgba(255,255,255,.035)' }}><span className="block text-xs font-bold uppercase text-white/40">Codigo real</span><b className="font-mono">{code || 'SIN-CODIGO'}</b></div>}
-          <label className="flex items-center gap-1"><span className="text-xs text-white/50">Cantidad</span><select id="label-quantityMode" value={quantityMode} onChange={(event) => setQuantityMode(event.target.value)} className="input-dark w-28"><option value="manual">Manual</option><option value="stock">Automatica x stock</option></select></label>
-          <label className="flex items-center gap-1 pt-5 text-sm"><input id="label-showSku" type="checkbox" checked={showSku} onChange={(e) => setShowSku(e.target.checked)} /> SKU</label>
+          {source === 'manual' ? <label className="flex items-center gap-1"><span className="text-xs text-white/50">Codigo manual</span><input id="label-manualCode" value={manualCode} onChange={(event) => setManualCode(event.target.value)} className="input-dark w-36" placeholder="Escanee o escriba"  autoComplete="off" /></label> : <div className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'var(--line)', background: 'rgba(255,255,255,.035)' }}><span className="block text-xs font-bold uppercase text-white/40">Codigo real</span><b className="font-mono">{code || 'SIN-CODIGO'}</b></div>}
+          <label className="flex items-center gap-1"><span className="text-xs text-white/50">Cantidad</span><select id="label-quantityMode" value={quantityMode} onChange={(event) => setQuantityMode(event.target.value)} className="input-dark w-28" autoComplete="off"><option value="manual">Manual</option><option value="stock">Automatica x stock</option></select></label>
+          <label className="flex items-center gap-1 pt-5 text-sm"><input id="label-showSku" type="checkbox" checked={showSku} onChange={(e) => setShowSku(e.target.checked)}  autoComplete="off" /> SKU</label>
         </div>
         <div className="flex gap-1">
           <button onClick={() => setShowDesigner(true)} className="rounded bg-white/10 px-2 py-1 text-xs text-white/70 hover:bg-white/20" title="Disenar etiqueta personalizada">Disenar</button>

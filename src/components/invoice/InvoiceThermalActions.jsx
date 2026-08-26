@@ -311,10 +311,10 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
   return (
     <div className="no-print mt-3 flex w-full flex-wrap items-center gap-2 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line)', background: 'var(--bg-elevated)' }}>
       <span className="inline-flex items-center gap-1.5 text-xs font-bold" style={{ color: 'var(--text-secondary)' }}><Cpu size={13} /> Impresion termica</span>
-      <select id="invoice-thermal-mode" name="invoice-thermal-mode" value={profile.protocol || 'escpos'} onChange={(event) => updateProfile({ protocol: event.target.value, manualProtocol: true })} className="input-dark max-w-64 py-1.5 text-xs" aria-label="invoice-thermal-mode">
+      <select id="invoice-thermal-mode" name="invoice-thermal-mode" value={profile.protocol || 'escpos'} onChange={(event) => updateProfile({ protocol: event.target.value, manualProtocol: true })} className="input-dark max-w-64 py-1.5 text-xs" aria-label="invoice-thermal-mode" autoComplete="off">
         {THERMAL_PROTOCOLS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
       </select>
-      <select id="invoice-thermal-width" name="invoice-thermal-width" value={paperWidthId} onChange={(event) => updateProfile({ paperWidth: event.target.value })} className="input-dark max-w-32 py-1.5 text-xs" aria-label="invoice-thermal-width">
+      <select id="invoice-thermal-width" name="invoice-thermal-width" value={paperWidthId} onChange={(event) => updateProfile({ paperWidth: event.target.value })} className="input-dark max-w-32 py-1.5 text-xs" aria-label="invoice-thermal-width" autoComplete="off">
         <option value="58">58 mm</option>
         <option value="80">80 mm</option>
         <option value="112">112 mm</option>

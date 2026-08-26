@@ -178,7 +178,7 @@ function PayableForm({ draft, setDraft, suppliers, editing = false }) {
   }))
   return (
     <div className="grid gap-3 md:grid-cols-2">
-      <label><span className="label-dark">Proveedor</span><select id="payable-supplier" value={draft.supplierId} onChange={(event) => set('supplierId', event.target.value)} className="input-dark">{suppliers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+      <label><span className="label-dark">Proveedor</span><select id="payable-supplier" value={draft.supplierId} onChange={(event) => set('supplierId', event.target.value)} className="input-dark" autoComplete="off">{suppliers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
       <Input label="Referencia / factura" value={draft.reference} onChange={(value) => set('reference', value)} />
       <Input label="Concepto" value={draft.concept} onChange={(value) => set('concept', value)} />
       <Input label="Monto total" type="number" step="0.01" min="0" value={draft.amount} onChange={(value) => set('amount', value)} />
@@ -212,12 +212,12 @@ function Icon({ icon: IconSvg, onClick, disabled = false }) {
 
 function Input({ label, value, onChange, type = 'text', step, min, id }) {
   const inputId = id || (label ? label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : undefined)
-  return <label><span className="label-dark">{label}</span><input id={inputId} type={type} step={step} min={min} value={value || ''} onChange={(event) => onChange(event.target.value)} className="input-dark" /></label>
+  return <label><span className="label-dark">{label}</span><input id={inputId} type={type} step={step} min={min} value={value || ''} onChange={(event) => onChange(event.target.value)} className="input-dark"  autoComplete="off" /></label>
 }
 
 function Select({ label, value, onChange, options, id }) {
   const selectId = id || (label ? label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : undefined)
-  return <label><span className="label-dark">{label}</span><select id={selectId} value={value} onChange={(event) => onChange(event.target.value)} className="input-dark">{options.map((option) => <option key={option}>{option}</option>)}</select></label>
+  return <label><span className="label-dark">{label}</span><select id={selectId} value={value} onChange={(event) => onChange(event.target.value)} className="input-dark" autoComplete="off">{options.map((option) => <option key={option}>{option}</option>)}</select></label>
 }
 
 function columns({ openPayment, openEdit, remove, setHistory }) {

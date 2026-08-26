@@ -44,18 +44,18 @@ export const DataTable = memo(function DataTable({
             {searchable ? (
               <label className="flex min-w-[220px] flex-1 items-center gap-2 px-3 py-1.5 sm:max-w-sm" style={{ background: 'var(--bg-input)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)' }}>
                 <Search size={13} style={{ color: 'var(--text-tertiary)' }} />
-                <input id={`${tableId}-search`} name={`${tableId}-search`} value={query} onChange={(event) => setQuery(event.target.value)} className="w-full bg-transparent text-xs font-semibold outline-none placeholder:text-white/30" placeholder={searchPlaceholder} />
+                <input id={`${tableId}-search`} name={`${tableId}-search`} value={query} onChange={(event) => setQuery(event.target.value)} className="w-full bg-transparent text-xs font-semibold outline-none placeholder:text-white/30" placeholder={searchPlaceholder}  autoComplete="off" />
               </label>
             ) : null}
           </div>
           <div className="flex items-center gap-2">
-            <select id={`${tableId}-page-size`} name={`${tableId}-page-size`} value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))} className="input-dark max-w-32 py-1.5 text-xs" aria-label={`${tableId}-page-size`}>
+            <select id={`${tableId}-page-size`} name={`${tableId}-page-size`} value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))} className="input-dark max-w-32 py-1.5 text-xs" aria-label={`${tableId}-page-size`} autoComplete="off">
               {pageSizeOptions.map((option) => <option key={option} value={option}>{option} por pagina</option>)}
             </select>
             <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} className="rounded-md border px-2.5 py-1.5 transition" style={{ borderColor: 'var(--line)', background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}>Anterior</button>
             <span className="flex items-center gap-1">
               <span>Ir a</span>
-              <input id={`${tableId}-page-jump`} name={`${tableId}-page-jump`} type="number" min={1} max={totalPages} value={safePage} onChange={(e) => { const v = Number(e.target.value); if (v >= 1 && v <= totalPages) setPage(v) }} className="input-dark w-14 py-1 text-center text-xs" aria-label={`${tableId}-page-jump`} />
+              <input id={`${tableId}-page-jump`} name={`${tableId}-page-jump`} type="number" min={1} max={totalPages} value={safePage} onChange={(e) => { const v = Number(e.target.value); if (v >= 1 && v <= totalPages) setPage(v) }} className="input-dark w-14 py-1 text-center text-xs" aria-label={`${tableId}-page-jump`}  autoComplete="off" />
             </span>
             <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} className="rounded-md border px-2.5 py-1.5 transition" style={{ borderColor: 'var(--line)', background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}>Siguiente</button>
           </div>

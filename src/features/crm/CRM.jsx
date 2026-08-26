@@ -95,7 +95,7 @@ export function CRM() {
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="module-search-bar">
             <Search size={16} style={{ color: 'var(--text-tertiary)' }} />
-            <input id="crm-query" value={query} onChange={(e) => setQuery(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" placeholder="Buscar por nombre, RNC, cedula, email, telefono..." aria-label="crm-query" />
+            <input id="crm-query" value={query} onChange={(e) => setQuery(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" placeholder="Buscar por nombre, RNC, cedula, email, telefono..." aria-label="crm-query"  autoComplete="off" />
           </div>
         </div>
         <div className="mb-4 flex flex-wrap gap-2">
@@ -192,7 +192,7 @@ function CustomerForm({ customer, onSave }) {
           <Input type="number" label="Limite credito" name="crm-credit-limit" value={draft.creditLimit} onChange={(v) => set('creditLimit', Number(v))} />
           <Select label="Estado" name="crm-status" value={draft.status} onChange={(v) => set('status', v)} options={['Activo', 'Inactivo']} />
           <label className="md:col-span-3"><span className="label-dark">Etiquetas</span><div className="flex flex-wrap gap-2">{tagOptions.map((tag) => <button type="button" key={tag} onClick={() => set('tags', draft.tags?.includes(tag) ? draft.tags.filter((item) => item !== tag) : [...(draft.tags || []), tag])} className={`rounded-lg border px-3 py-2 text-sm ${draft.tags?.includes(tag) ? 'border-blue-400 bg-blue-500/15' : 'border-white/10 bg-white/[0.035]'}`}>{tag}</button>)}</div></label>
-          <label className="md:col-span-3"><span className="label-dark">Notas internas</span><textarea id="crm-notes" name="crm-notes" value={draft.internalNotes} onChange={(e) => set('internalNotes', e.target.value)} className="input-dark min-h-24" /></label>
+          <label className="md:col-span-3"><span className="label-dark">Notas internas</span><textarea id="crm-notes" name="crm-notes" value={draft.internalNotes} onChange={(e) => set('internalNotes', e.target.value)} className="input-dark min-h-24"  autoComplete="off" /></label>
         </div>
       </section>
 
@@ -235,8 +235,8 @@ function validateCustomer(customer) {
   if (customer.type === 'Persona fisica' && customer.cedula && customer.cedula.replace(/\D/g, '').length !== 11) throw new Error('La cedula debe tener 11 digitos.')
 }
 function Icon({ icon: IconSvg, onClick }) { return <button onClick={onClick} className="rounded-md border p-2 transition" style={{ borderColor: 'var(--line)', background: 'rgba(255,255,255,.035)', color: 'rgba(255,255,255,.65)' }}><IconSvg size={15} /></button> }
-function Input({ label, value, onChange, type = 'text', name }) { return <label><span className="label-dark">{label}</span><input id={name} name={name} type={type} value={value || ''} onChange={(e) => onChange(e.target.value)} className="input-dark" /></label> }
-function Select({ label, value, onChange, options, name }) { return <label><span className="label-dark">{label}</span><select id={name} name={name} value={value} onChange={(e) => onChange(e.target.value)} className="input-dark">{options.map((o) => <option key={o}>{o}</option>)}</select></label> }
+function Input({ label, value, onChange, type = 'text', name }) { return <label><span className="label-dark">{label}</span><input id={name} name={name} type={type} value={value || ''} onChange={(e) => onChange(e.target.value)} className="input-dark"  autoComplete="off" /></label> }
+function Select({ label, value, onChange, options, name }) { return <label><span className="label-dark">{label}</span><select id={name} name={name} value={value} onChange={(e) => onChange(e.target.value)} className="input-dark" autoComplete="off">{options.map((o) => <option key={o}>{o}</option>)}</select></label> }
 function Box({ label, value }) { return <div className="rounded-lg p-4" style={{ border: '1px solid var(--line)', background: 'rgba(255,255,255,.035)' }}><p className="text-xs font-bold uppercase" style={{ color: 'rgba(255,255,255,.4)' }}>{label}</p><p className="mt-2 font-display text-xl font-bold">{value}</p></div> }
 function SimpleRows({ rows }) { return <div className="space-y-2">{rows.length ? rows.map((row, index) => <div key={index} className="grid grid-cols-3 gap-3 rounded-lg p-3 text-sm" style={{ background: 'rgba(255,255,255,.035)' }}>{row.map((cell) => <span key={cell}>{cell}</span>)}</div>) : <p style={{ color: 'rgba(255,255,255,.45)' }}>Sin registros.</p>}</div> }
 function normalize(value = '') { return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() }

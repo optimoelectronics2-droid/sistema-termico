@@ -150,18 +150,18 @@ export function QuoteForm({ initialQuote, onDone }) {
         <section className="panel rounded-lg p-4">
           <p className="text-xs font-extrabold uppercase text-blue-200/80">Detalles</p>
           <div className="mt-3 space-y-3">
-            <label htmlFor="quote-status-fld"><span className="label-dark">Estado</span><select id="quote-status-fld" name="quote-status" value={form.status} onChange={(e) => setForm((s) => ({ ...s, status: e.target.value }))} className="input-dark">
+            <label htmlFor="quote-status-fld"><span className="label-dark">Estado</span><select id="quote-status-fld" name="quote-status" value={form.status} onChange={(e) => setForm((s) => ({ ...s, status: e.target.value }))} className="input-dark" autoComplete="off">
               <option>Borrador</option><option>Enviada</option><option>Aprobada</option><option>Convertida</option><option>Rechazada</option>
             </select></label>
-            <label htmlFor="quote-mode-fld"><span className="label-dark">Modalidad</span><select id="quote-mode-fld" name="quote-mode" value={form.mode} onChange={(e) => setForm((s) => ({ ...s, mode: e.target.value }))} className="input-dark">
+            <label htmlFor="quote-mode-fld"><span className="label-dark">Modalidad</span><select id="quote-mode-fld" name="quote-mode" value={form.mode} onChange={(e) => setForm((s) => ({ ...s, mode: e.target.value }))} className="input-dark" autoComplete="off">
               <option value={invoiceModes.TAXED}>Con ITBIS</option>
               <option value={invoiceModes.NO_TAX}>Sin ITBIS</option>
               <option value={invoiceModes.MIXED}>Mixta</option>
             </select></label>
-            <label htmlFor="quote-date-fld"><span className="label-dark">Fecha</span><input id="quote-date-fld" name="quote-date" type="date" value={form.date} onChange={(e) => setForm((s) => ({ ...s, date: e.target.value }))} className="input-dark" /></label>
-            <label htmlFor="quote-valid-until-fld"><span className="label-dark">Valida hasta</span><input id="quote-valid-until-fld" name="quote-valid-until" type="date" value={form.validUntil} onChange={(e) => setForm((s) => ({ ...s, validUntil: e.target.value }))} className="input-dark" /></label>
-            <label htmlFor="quote-seller-fld"><span className="label-dark">Vendedor</span><input id="quote-seller-fld" name="quote-seller" value={form.seller || ''} onChange={(e) => setForm((s) => ({ ...s, seller: e.target.value }))} className="input-dark" placeholder="Vendedor" /></label>
-            <label htmlFor="quote-commercial-terms-fld"><span className="label-dark">Condiciones comerciales</span><textarea id="quote-commercial-terms-fld" name="quote-commercial-terms" value={form.commercialTerms} onChange={(e) => setForm((s) => ({ ...s, commercialTerms: e.target.value }))} className="input-dark min-h-16" /></label>
+            <label htmlFor="quote-date-fld"><span className="label-dark">Fecha</span><input id="quote-date-fld" name="quote-date" type="date" value={form.date} onChange={(e) => setForm((s) => ({ ...s, date: e.target.value }))} className="input-dark"  autoComplete="off" /></label>
+            <label htmlFor="quote-valid-until-fld"><span className="label-dark">Valida hasta</span><input id="quote-valid-until-fld" name="quote-valid-until" type="date" value={form.validUntil} onChange={(e) => setForm((s) => ({ ...s, validUntil: e.target.value }))} className="input-dark"  autoComplete="off" /></label>
+            <label htmlFor="quote-seller-fld"><span className="label-dark">Vendedor</span><input id="quote-seller-fld" name="quote-seller" value={form.seller || ''} onChange={(e) => setForm((s) => ({ ...s, seller: e.target.value }))} className="input-dark" placeholder="Vendedor"  autoComplete="off" /></label>
+            <label htmlFor="quote-commercial-terms-fld"><span className="label-dark">Condiciones comerciales</span><textarea id="quote-commercial-terms-fld" name="quote-commercial-terms" value={form.commercialTerms} onChange={(e) => setForm((s) => ({ ...s, commercialTerms: e.target.value }))} className="input-dark min-h-16"  autoComplete="off" /></label>
           </div>
         </section>
       </aside>
@@ -207,13 +207,13 @@ export function QuoteForm({ initialQuote, onDone }) {
                         {product ? <p className="mt-1 text-xs text-white/40">{line.sku || product.sku || 'Sin codigo'} · {product.category || 'Producto'}</p> : null}
                       </td>
                       <td className="p-3">
-                        <input id={`quote-desc-${line.id}`} name={`quoteDescription-${index + 1}`} value={line.description || ''} onChange={(event) => setLine(line.id, { description: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black/20 px-2.5 py-2 text-sm outline-none" placeholder="Descripcion" aria-label={`quote-desc-${line.id}`} />
+                        <input id={`quote-desc-${line.id}`} name={`quoteDescription-${index + 1}`} value={line.description || ''} onChange={(event) => setLine(line.id, { description: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black/20 px-2.5 py-2 text-sm outline-none" placeholder="Descripcion" aria-label={`quote-desc-${line.id}`}  autoComplete="off" />
                       </td>
                       <td className="p-3">
-                        <input id={`quote-qty-${line.id}`} name={`quoteQuantity-${index + 1}`} type="number" min="1" value={line.quantity} onChange={(event) => setLine(line.id, { quantity: Math.max(1, Number(event.target.value)) })} className="input-dark w-20 text-center" aria-label={`quote-qty-${line.id}`} />
+                        <input id={`quote-qty-${line.id}`} name={`quoteQuantity-${index + 1}`} type="number" min="1" value={line.quantity} onChange={(event) => setLine(line.id, { quantity: Math.max(1, Number(event.target.value)) })} className="input-dark w-20 text-center" aria-label={`quote-qty-${line.id}`}  autoComplete="off" />
                       </td>
                       <td className="p-3">
-                        <input id={`quote-price-${line.id}`} name={`quotePrice-${index + 1}`} type="number" min="0" value={line.price} onChange={(event) => setLine(line.id, { price: Number(event.target.value) })} className="input-dark w-32" aria-label={`quote-price-${line.id}`} />
+                        <input id={`quote-price-${line.id}`} name={`quotePrice-${index + 1}`} type="number" min="0" value={line.price} onChange={(event) => setLine(line.id, { price: Number(event.target.value) })} className="input-dark w-32" aria-label={`quote-price-${line.id}`}  autoComplete="off" />
                       </td>
                       <td className="p-3">
                         {form.mode === invoiceModes.MIXED ? (
@@ -221,7 +221,7 @@ export function QuoteForm({ initialQuote, onDone }) {
                         ) : <span className="text-white/45 text-sm">{line.taxable ? 'Si' : 'No'}</span>}
                       </td>
                       <td className="p-3">
-                        <input id={`quote-discount-${line.id}`} name={`quoteDiscount-${index + 1}`} type="number" min="0" max="100" value={line.discount} onChange={(event) => setLine(line.id, { discount: Number(event.target.value) })} className="input-dark w-24" aria-label={`quote-discount-${line.id}`} />
+                        <input id={`quote-discount-${line.id}`} name={`quoteDiscount-${index + 1}`} type="number" min="0" max="100" value={line.discount} onChange={(event) => setLine(line.id, { discount: Number(event.target.value) })} className="input-dark w-24" aria-label={`quote-discount-${line.id}`}  autoComplete="off" />
                       </td>
                       <td className="p-3 font-bold text-white">{currency.format((calc?.net || 0) + (calc?.tax || 0))}</td>
                       <td className="p-3 text-right"><button type="button" onClick={() => removeLine(line.id)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-400/20 bg-red-500/10 text-red-200 hover:bg-red-500/20"><Trash2 size={15} /></button></td>
@@ -270,10 +270,10 @@ export function QuoteForm({ initialQuote, onDone }) {
 
       <Modal open={customerModal} onClose={() => setCustomerModal(false)} title="Cliente rapido" size="md" footer={<div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setCustomerModal(false)}>Cancelar</Button><Button variant="success" onClick={saveQuickCustomer}>Guardar</Button></div>}>
         <div className="grid gap-3 md:grid-cols-2">
-          <label htmlFor="quick-customer-type"><span className="label-dark">Tipo</span><select id="quick-customer-type" name="quickCustomerType" value={customerDraft.type} onChange={(e) => setCustomerDraft((s) => ({ ...s, type: e.target.value }))} className="input-dark"><option value="persona">Persona</option><option value="empresa">Empresa</option><option value="final">Final</option></select></label>
-          <label htmlFor="quick-customer-name"><span className="label-dark">Nombre</span><input id="quick-customer-name" name="quickCustomerName" value={customerDraft.name} onChange={(e) => setCustomerDraft((s) => ({ ...s, name: e.target.value }))} className="input-dark" autoFocus /></label>
-          <label htmlFor="quick-customer-document"><span className="label-dark">RNC / Cedula</span><input id="quick-customer-document" name="quickCustomerDocument" value={customerDraft.document} onChange={(e) => setCustomerDraft((s) => ({ ...s, document: e.target.value }))} className="input-dark" /></label>
-          <label htmlFor="quick-customer-phone"><span className="label-dark">Telefono</span><input id="quick-customer-phone" name="quickCustomerPhone" value={customerDraft.phone} onChange={(e) => setCustomerDraft((s) => ({ ...s, phone: e.target.value, whatsapp: e.target.value }))} className="input-dark" /></label>
+          <label htmlFor="quick-customer-type"><span className="label-dark">Tipo</span><select id="quoteform-quick-customer-type" name="quickCustomerType" value={customerDraft.type} onChange={(e) => setCustomerDraft((s) => ({ ...s, type: e.target.value }))} className="input-dark" autoComplete="off"><option value="persona">Persona</option><option value="empresa">Empresa</option><option value="final">Final</option></select></label>
+          <label htmlFor="quick-customer-name"><span className="label-dark">Nombre</span><input id="quoteform-quick-customer-name" name="quickCustomerName" value={customerDraft.name} onChange={(e) => setCustomerDraft((s) => ({ ...s, name: e.target.value }))} className="input-dark" autoFocus  autoComplete="off" /></label>
+          <label htmlFor="quick-customer-document"><span className="label-dark">RNC / Cedula</span><input id="quoteform-quick-customer-document" name="quickCustomerDocument" value={customerDraft.document} onChange={(e) => setCustomerDraft((s) => ({ ...s, document: e.target.value }))} className="input-dark"  autoComplete="off" /></label>
+          <label htmlFor="quick-customer-phone"><span className="label-dark">Telefono</span><input id="quoteform-quick-customer-phone" name="quickCustomerPhone" value={customerDraft.phone} onChange={(e) => setCustomerDraft((s) => ({ ...s, phone: e.target.value, whatsapp: e.target.value }))} className="input-dark"  autoComplete="tel" /></label>
         </div>
       </Modal>
 

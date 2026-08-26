@@ -233,7 +233,7 @@ function CommandPalette() {
       <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-2xl shadow-2xl backdrop-blur-2xl" onClick={(e) => e.stopPropagation()} style={{ border: '1px solid var(--line-strong)', background: 'var(--bg-elevated)', boxShadow: '0 30px 64px rgba(0,0,0,.7)' }}>
         <div className="flex items-center gap-3 px-4 py-4" style={{ borderBottom: '1px solid var(--line-strong)', background: 'var(--bg-surface)' }}>
           <Command size={18} style={{ color: 'rgb(147, 197, 253)' }} />
-          <input id="appshell-search" autoFocus value={query} onChange={(e) => setQuery(e.target.value)} className="w-full bg-transparent text-sm font-semibold outline-none" placeholder="Buscar facturas, clientes, productos, caja, compras, inventario..." style={{ color: 'white' }} aria-label="appshell-search" />
+          <input id="appshell-search" autoFocus value={query} onChange={(e) => setQuery(e.target.value)} className="w-full bg-transparent text-sm font-semibold outline-none" placeholder="Buscar facturas, clientes, productos, caja, compras, inventario..." style={{ color: 'white' }} aria-label="appshell-search"  autoComplete="off" />
           <span className="hidden rounded-md border px-2 py-1 text-[10px] font-extrabold uppercase sm:inline" style={{ borderColor: 'var(--line)', color: 'var(--text-tertiary)' }}>Esc</span>
         </div>
         <div className="premium-scroll max-h-[68vh] overflow-auto p-3">

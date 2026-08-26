@@ -247,7 +247,7 @@ export function POS() {
             <div className="relative flex-1">
               <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-3">
                 <ScanBarcode size={19} className="text-blue-300" />
-                <input ref={productInputRef} id="pos-query" name="pos-query" value={query} onChange={(event) => setQuery(event.target.value)} className="w-full bg-transparent text-sm outline-none placeholder:text-white/35" placeholder="Escanea codigo de barras, SKU, IMEI o busca producto" aria-label="pos-query" />
+                <input ref={productInputRef} id="pos-query" name="pos-query" value={query} onChange={(event) => setQuery(event.target.value)} className="w-full bg-transparent text-sm outline-none placeholder:text-white/35" placeholder="Escanea codigo de barras, SKU, IMEI o busca producto" aria-label="pos-query"  autoComplete="off" />
               </div>
               {filtered.length > 0 && (
                 <div className="absolute left-0 right-0 top-full z-[9999] mt-1 max-h-80 overflow-y-auto rounded-lg border border-white/10 bg-[#111118] p-2 shadow-2xl">
@@ -274,12 +274,12 @@ export function POS() {
                 <p className="mt-2 text-xs text-white/40">Busca o escanea un producto para comenzar.</p>
               )}
             </div>
-            <select id="pos-ncf-type" name="pos-ncf-type" value={ncfType} onChange={(event) => changeNcfType(event.target.value)} className="rounded-lg border border-white/10 bg-[#111118] px-3 py-3 text-sm font-bold outline-none" aria-label="pos-ncf-type">
+            <select id="pos-ncf-type" name="pos-ncf-type" value={ncfType} onChange={(event) => changeNcfType(event.target.value)} className="rounded-lg border border-white/10 bg-[#111118] px-3 py-3 text-sm font-bold outline-none" aria-label="pos-ncf-type" autoComplete="off">
               <option value="NO_FISCAL">Sin comprobante</option>
               <option value="B01">B01 Credito fiscal</option>
               <option value="B02">B02 Consumo</option>
             </select>
-            <select id="pos-mode" name="pos-mode" value={mode} onChange={(event) => setMode(event.target.value)} className="rounded-lg border border-white/10 bg-[#111118] px-3 py-3 text-sm font-bold outline-none" aria-label="pos-mode">
+            <select id="pos-mode" name="pos-mode" value={mode} onChange={(event) => setMode(event.target.value)} className="rounded-lg border border-white/10 bg-[#111118] px-3 py-3 text-sm font-bold outline-none" aria-label="pos-mode" autoComplete="off">
               <option value={invoiceModes.TAXED}>Factura con ITBIS</option>
               <option value={invoiceModes.NO_TAX}>Factura sin ITBIS</option>
               <option value={invoiceModes.MIXED}>Factura mixta</option>
@@ -301,7 +301,7 @@ export function POS() {
                 className="w-full rounded-lg border border-white/10 bg-[#0d0e14] px-3 py-3 text-sm outline-none placeholder:text-white/35"
                 placeholder="Buscar cliente por nombre, RNC, cedula, telefono o WhatsApp"
                 aria-label="pos-customer-query"
-              />
+               autoComplete="off" />
               {customerResults.length ? (
                 <div className="absolute left-0 right-12 top-12 z-[9999] max-h-72 overflow-auto rounded-lg border border-white/10 bg-[#111118] p-2 shadow-2xl">
                   {customerResults.map((item) => (
@@ -322,7 +322,7 @@ export function POS() {
             </div>
             <button type="button" title="Registrar cliente" onClick={() => setCustomerModal(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.035] text-white/70 hover:bg-white/[0.08]"><UserPlus size={18} /></button>
           </div>
-          <select id="pos-payment-method" name="pos-payment-method" value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} className="rounded-lg border border-white/10 bg-[#0d0e14] px-3 py-3 text-sm outline-none" aria-label="pos-payment-method">
+          <select id="pos-payment-method" name="pos-payment-method" value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} className="rounded-lg border border-white/10 bg-[#0d0e14] px-3 py-3 text-sm outline-none" aria-label="pos-payment-method" autoComplete="off">
             <option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option><option>Credito</option>
           </select>
         </div>
@@ -347,11 +347,11 @@ export function POS() {
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <label>
                   <span className="label-dark">Precio</span>
-                  <input type="number" min="0" step="0.01" id={"pos-item-price-" + index} name={"pos-item-price-" + index} value={item.price} onChange={(event) => updateCartLine(item, { price: Number(event.target.value) })} className="input-dark py-2" />
+                  <input type="number" min="0" step="0.01" id={"pos-item-price-" + index} name={"pos-item-price-" + index} value={item.price} onChange={(event) => updateCartLine(item, { price: Number(event.target.value) })} className="input-dark py-2"  autoComplete="off" />
                 </label>
                 <label>
                   <span className="label-dark">Rebaja %</span>
-                  <input type="number" min="0" max="10" step="0.01" id={"pos-item-discount-" + index} name={"pos-item-discount-" + index} value={item.discount || 0} onChange={(event) => updateCartLine(item, { discount: Math.min(Math.max(Number(event.target.value), 0), 10) })} className="input-dark py-2" />
+                  <input type="number" min="0" max="10" step="0.01" id={"pos-item-discount-" + index} name={"pos-item-discount-" + index} value={item.discount || 0} onChange={(event) => updateCartLine(item, { discount: Math.min(Math.max(Number(event.target.value), 0), 10) })} className="input-dark py-2"  autoComplete="off" />
                 </label>
               </div>
             </div>
@@ -375,10 +375,10 @@ export function POS() {
       </section>
       <Modal open={customerModal} onClose={() => setCustomerModal(false)} title="Registrar cliente" size="md" footer={<div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setCustomerModal(false)}>Cancelar</Button><Button variant="success" onClick={saveQuickCustomer}>Guardar cliente</Button></div>}>
         <div className="grid gap-3 md:grid-cols-2">
-          <label><span className="label-dark">Tipo</span><select id="pos-customer-type" name="pos-customer-type" value={customerDraft.type} onChange={(event) => setCustomerDraft((state) => ({ ...state, type: event.target.value }))} className="input-dark"><option value="persona">Persona</option><option value="empresa">Empresa</option><option value="final">Final</option></select></label>
-          <label><span className="label-dark">Nombre</span><input id="pos-customer-name" name="pos-customer-name" value={customerDraft.name} onChange={(event) => setCustomerDraft((state) => ({ ...state, name: event.target.value }))} className="input-dark" autoFocus /></label>
-          <label><span className="label-dark">RNC / Cedula</span><input id="pos-customer-document" name="pos-customer-document" value={customerDraft.document} onChange={(event) => setCustomerDraft((state) => ({ ...state, document: event.target.value }))} className="input-dark" /></label>
-          <label><span className="label-dark">Telefono</span><input id="pos-customer-phone" name="pos-customer-phone" value={customerDraft.phone} onChange={(event) => setCustomerDraft((state) => ({ ...state, phone: event.target.value, whatsapp: event.target.value }))} className="input-dark" /></label>
+          <label><span className="label-dark">Tipo</span><select id="pos-customer-type" name="pos-customer-type" value={customerDraft.type} onChange={(event) => setCustomerDraft((state) => ({ ...state, type: event.target.value }))} className="input-dark" autoComplete="off"><option value="persona">Persona</option><option value="empresa">Empresa</option><option value="final">Final</option></select></label>
+          <label><span className="label-dark">Nombre</span><input id="pos-customer-name" name="pos-customer-name" value={customerDraft.name} onChange={(event) => setCustomerDraft((state) => ({ ...state, name: event.target.value }))} className="input-dark" autoFocus  autoComplete="off" /></label>
+          <label><span className="label-dark">RNC / Cedula</span><input id="pos-customer-document" name="pos-customer-document" value={customerDraft.document} onChange={(event) => setCustomerDraft((state) => ({ ...state, document: event.target.value }))} className="input-dark"  autoComplete="off" /></label>
+          <label><span className="label-dark">Telefono</span><input id="pos-customer-phone" name="pos-customer-phone" value={customerDraft.phone} onChange={(event) => setCustomerDraft((state) => ({ ...state, phone: event.target.value, whatsapp: event.target.value }))} className="input-dark"  autoComplete="tel" /></label>
         </div>
       </Modal>
     </div>

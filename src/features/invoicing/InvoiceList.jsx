@@ -211,7 +211,7 @@ export function InvoiceList() {
               className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] pl-10 pr-4 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
               placeholder="Buscar factura, cliente, RNC, NCF, telefono, producto, vendedor, pago, fecha o total..."
               aria-label="invoice-list-query"
-            />
+             autoComplete="off" />
           </div>
           <div className="flex shrink-0 items-center gap-2 rounded-xl border border-[#243244] bg-[#0f172a] px-4 py-2">
             <span className="text-sm font-bold text-[#F8FAFC]">{totalMatched}</span>
@@ -250,13 +250,13 @@ export function InvoiceList() {
             <ChevronDown size={14} className={`transition duration-200 ${advancedOpen ? 'rotate-180' : ''}`} />
           </button>
           <div className="flex items-center gap-2">
-            <select id="invoice-list-mode" value={mode} onChange={(e) => setMode(e.target.value)} className="h-9 rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-xs font-bold text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-mode">
+            <select id="invoice-list-mode" value={mode} onChange={(e) => setMode(e.target.value)} className="h-9 rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-xs font-bold text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-mode" autoComplete="off">
               <option value="all" className="bg-[#0f172a]">Modo: todos</option>
               <option value={invoiceModes.TAXED} className="bg-[#0f172a]">Con ITBIS</option>
               <option value={invoiceModes.NO_TAX} className="bg-[#0f172a]">Sin ITBIS</option>
               <option value={invoiceModes.MIXED} className="bg-[#0f172a]">Mixta</option>
             </select>
-            <select id="invoice-list-status" value={status} onChange={(e) => setStatus(e.target.value)} className="h-9 rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-xs font-bold text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-status">
+            <select id="invoice-list-status" value={status} onChange={(e) => setStatus(e.target.value)} className="h-9 rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-xs font-bold text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-status" autoComplete="off">
               <option value="all" className="bg-[#0f172a]">Estado: todos</option>
               <option value="draft" className="bg-[#0f172a]">Borrador</option>
               <option value="paid" className="bg-[#0f172a]">Pagada</option>
@@ -264,7 +264,7 @@ export function InvoiceList() {
               <option value="credit" className="bg-[#0f172a]">Fiada / pendiente</option>
               <option value="voided" className="bg-[#0f172a]">Anulada</option>
             </select>
-            <select id="invoice-list-ncf-type" value={ncfType} onChange={(e) => setNcfType(e.target.value)} className="h-9 rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-xs font-bold text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-ncf-type">
+            <select id="invoice-list-ncf-type" value={ncfType} onChange={(e) => setNcfType(e.target.value)} className="h-9 rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-xs font-bold text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-ncf-type" autoComplete="off">
               <option value="all" className="bg-[#0f172a]">NCF todos</option>
               <option className="bg-[#0f172a]">B01</option>
               <option className="bg-[#0f172a]">B02</option>
@@ -283,49 +283,49 @@ export function InvoiceList() {
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-1.5">
                   <label htmlFor="invoice-list-seller" className="text-xs font-bold text-[#94A3B8]">Vendedor</label>
-                  <select id="invoice-list-seller" value={filters.seller} onChange={(e) => setFilter('seller', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-seller">
+                  <select id="invoice-list-seller" value={filters.seller} onChange={(e) => setFilter('seller', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-seller" autoComplete="off">
                     <option value="all" className="bg-[#0f172a]">Todos</option>
                     {sellers.map((s) => <option key={s} value={s} className="bg-[#0f172a]">{s}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="invoice-list-payment-method" className="text-xs font-bold text-[#94A3B8]">Metodo de pago</label>
-                  <select id="invoice-list-payment-method" value={filters.paymentMethod} onChange={(e) => setFilter('paymentMethod', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-payment-method">
+                  <select id="invoice-list-payment-method" value={filters.paymentMethod} onChange={(e) => setFilter('paymentMethod', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-payment-method" autoComplete="off">
                     <option value="all" className="bg-[#0f172a]">Todos</option>
                     {paymentMethods.map((p) => <option key={p} value={p} className="bg-[#0f172a]">{p}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="invoice-list-product-query" className="text-xs font-bold text-[#94A3B8]">Producto / SKU</label>
-                  <input id="invoice-list-product-query" value={filters.productQuery} onChange={(e) => setFilter('productQuery', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="Ej. iPhone, SKU-001" aria-label="invoice-list-product-query" />
+                  <input id="invoice-list-product-query" value={filters.productQuery} onChange={(e) => setFilter('productQuery', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="Ej. iPhone, SKU-001" aria-label="invoice-list-product-query"  autoComplete="off" />
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="invoice-list-serial-query" className="text-xs font-bold text-[#94A3B8]">Serial / IMEI</label>
-                  <input id="invoice-list-serial-query" value={filters.serialQuery} onChange={(e) => setFilter('serialQuery', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="Serial o IMEI" aria-label="invoice-list-serial-query" />
+                  <input id="invoice-list-serial-query" value={filters.serialQuery} onChange={(e) => setFilter('serialQuery', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="Serial o IMEI" aria-label="invoice-list-serial-query"  autoComplete="off" />
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-1.5">
                   <label htmlFor="invoice-list-date-from" className="text-xs font-bold text-[#94A3B8]">Fecha desde</label>
-                  <input id="invoice-list-date-from" type="date" value={filters.dateFrom} onChange={(e) => setFilter('dateFrom', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-date-from" />
+                  <input id="invoice-list-date-from" type="date" value={filters.dateFrom} onChange={(e) => setFilter('dateFrom', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-date-from"  autoComplete="off" />
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="invoice-list-date-to" className="text-xs font-bold text-[#94A3B8]">Fecha hasta</label>
-                  <input id="invoice-list-date-to" type="date" value={filters.dateTo} onChange={(e) => setFilter('dateTo', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-date-to" />
+                  <input id="invoice-list-date-to" type="date" value={filters.dateTo} onChange={(e) => setFilter('dateTo', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-date-to"  autoComplete="off" />
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="invoice-list-min-total" className="text-xs font-bold text-[#94A3B8]">Monto minimo</label>
-                  <input id="invoice-list-min-total" type="number" min="0" value={filters.minTotal} onChange={(e) => setFilter('minTotal', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="RD$ 0" aria-label="invoice-list-min-total" />
+                  <input id="invoice-list-min-total" type="number" min="0" value={filters.minTotal} onChange={(e) => setFilter('minTotal', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="RD$ 0" aria-label="invoice-list-min-total"  autoComplete="off" />
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="invoice-list-max-total" className="text-xs font-bold text-[#94A3B8]">Monto maximo</label>
-                  <input id="invoice-list-max-total" type="number" min="0" value={filters.maxTotal} onChange={(e) => setFilter('maxTotal', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="RD$ 999,999" aria-label="invoice-list-max-total" />
+                  <input id="invoice-list-max-total" type="number" min="0" value={filters.maxTotal} onChange={(e) => setFilter('maxTotal', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="RD$ 999,999" aria-label="invoice-list-max-total"  autoComplete="off" />
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-1.5">
                   <label htmlFor="invoice-list-result-limit" className="text-xs font-bold text-[#94A3B8]">Mostrar maximo</label>
-                  <select id="invoice-list-result-limit" value={filters.resultLimit} onChange={(e) => setFilter('resultLimit', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-result-limit">
+                  <select id="invoice-list-result-limit" value={filters.resultLimit} onChange={(e) => setFilter('resultLimit', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-result-limit" autoComplete="off">
                     <option value="5" className="bg-[#0f172a]">5 registros</option>
                     <option value="10" className="bg-[#0f172a]">10 registros</option>
                     <option value="25" className="bg-[#0f172a]">25 registros</option>
@@ -336,7 +336,7 @@ export function InvoiceList() {
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="invoice-list-sort-by" className="text-xs font-bold text-[#94A3B8]">Orden</label>
-                  <select id="invoice-list-sort-by" value={filters.sortBy} onChange={(e) => setFilter('sortBy', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-sort-by">
+                  <select id="invoice-list-sort-by" value={filters.sortBy} onChange={(e) => setFilter('sortBy', e.target.value)} className="h-10 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" aria-label="invoice-list-sort-by" autoComplete="off">
                     <option value="newest" className="bg-[#0f172a]">Mas recientes</option>
                     <option value="oldest" className="bg-[#0f172a]">Mas antiguas</option>
                     <option value="total_desc" className="bg-[#0f172a]">Mayor monto</option>
@@ -384,7 +384,7 @@ export function InvoiceList() {
         size="md"
         footer={<div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setVoiding(null)}>Cancelar</Button><Button variant="danger" icon={RotateCcw} onClick={handleVoid}>Confirmar anulacion</Button></div>}
       >
-        <textarea id="invoice-list-void-reason" name="invoice-list-void-reason" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} className="input-dark min-h-32 w-full" placeholder="Motivo obligatorio de anulacion, minimo 10 caracteres" />
+        <textarea id="invoice-list-void-reason" name="invoice-list-void-reason" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} className="input-dark min-h-32 w-full" placeholder="Motivo obligatorio de anulacion, minimo 10 caracteres"  autoComplete="off" />
       </Modal>
 
       <Modal
@@ -404,10 +404,10 @@ export function InvoiceList() {
               <Button variant="ghost" className="w-full" onClick={() => setCreditItems((crediting?.items || []).map((item) => ({ ...item, quantity: Number(item.quantity || 0) })))}>Total</Button>
             </div>
           </div>
-          <textarea id="invoice-list-credit-reason" name="invoice-list-credit-reason" value={creditReason} onChange={(e) => setCreditReason(e.target.value)} className="input-dark min-h-24 w-full" placeholder="Motivo obligatorio, minimo 10 caracteres" />
+          <textarea id="invoice-list-credit-reason" name="invoice-list-credit-reason" value={creditReason} onChange={(e) => setCreditReason(e.target.value)} className="input-dark min-h-24 w-full" placeholder="Motivo obligatorio, minimo 10 caracteres"  autoComplete="off" />
           <div className="grid gap-3 rounded-lg p-3 md:grid-cols-3" style={{ border: '1px solid var(--line)', background: 'rgba(255,255,255,.035)' }}>
-            <label><span className="label-dark">Metodo reembolso</span><select id="invoice-list-credit-method" name="invoice-list-credit-method" value={creditPayment.method} onChange={(event) => setCreditPayment((state) => ({ ...state, method: event.target.value }))} className="input-dark"><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option><option>Credito</option></select></label>
-            <label><span className="label-dark">Monto reembolso</span><input id="invoice-list-credit-amount" name="invoice-list-credit-amount" type="number" min="0" max={creditPreviewTotals.total || 0} value={creditPayment.amount} onChange={(event) => setCreditPayment((state) => ({ ...state, amount: event.target.value }))} className="input-dark" placeholder={String(creditPreviewTotals.total || 0)} /></label>
+            <label><span className="label-dark">Metodo reembolso</span><select id="invoice-list-credit-method" name="invoice-list-credit-method" value={creditPayment.method} onChange={(event) => setCreditPayment((state) => ({ ...state, method: event.target.value }))} className="input-dark" autoComplete="off"><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option><option>Credito</option></select></label>
+            <label><span className="label-dark">Monto reembolso</span><input id="invoice-list-credit-amount" name="invoice-list-credit-amount" type="number" min="0" max={creditPreviewTotals.total || 0} value={creditPayment.amount} onChange={(event) => setCreditPayment((state) => ({ ...state, amount: event.target.value }))} className="input-dark" placeholder={String(creditPreviewTotals.total || 0)}  autoComplete="off" /></label>
             <div className="rounded-lg p-3 text-sm" style={{ background: 'rgba(0,0,0,.2)', color: 'rgba(255,255,255,.55)' }}>
               <p className="font-bold text-white">Impacto automatico</p>
               <p>Inventario, caja, CxC, reportes y contabilidad derivada se ajustan al emitir.</p>
@@ -435,7 +435,7 @@ export function InvoiceList() {
                   <p className="font-bold text-white">{item.name}</p>
                   <p className="text-xs" style={{ color: 'rgba(255,255,255,.45)' }}>Vendido: {crediting?.items?.[index]?.quantity || item.quantity} | Seriales: {(item.serials || (item.serial ? [item.serial] : [])).join(', ') || '-'}</p>
                 </div>
-                <input id={"invoice-list-credit-item-qty-" + index} name={"invoice-list-credit-item-qty-" + index} type="number" min="0" max={crediting?.items?.[index]?.quantity || item.quantity} value={item.quantity} onChange={(event) => setCreditItems((items) => items.map((line, lineIndex) => lineIndex === index ? { ...line, quantity: Number(event.target.value) } : line))} className="input-dark" aria-label={"invoice-list-credit-item-qty-" + index} />
+                <input id={"invoice-list-credit-item-qty-" + index} name={"invoice-list-credit-item-qty-" + index} type="number" min="0" max={crediting?.items?.[index]?.quantity || item.quantity} value={item.quantity} onChange={(event) => setCreditItems((items) => items.map((line, lineIndex) => lineIndex === index ? { ...line, quantity: Number(event.target.value) } : line))} className="input-dark" aria-label={"invoice-list-credit-item-qty-" + index}  autoComplete="off" />
               </div>
             ))}
           </div>
@@ -450,7 +450,7 @@ export function InvoiceList() {
         size="md"
         footer={<div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setDeleting(null)}>Cancelar</Button><Button variant="danger" icon={Trash2} onClick={handleDelete}>Eliminar</Button></div>}
       >
-        {deleting?.status !== 'draft' ? <textarea id="invoice-list-delete-reason" name="invoice-list-delete-reason" value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} className="input-dark min-h-32 w-full" placeholder="Motivo obligatorio de eliminacion, minimo 10 caracteres" /> : <p className="rounded-lg p-3 text-sm" style={{ border: '1px solid var(--line)', background: 'rgba(255,255,255,.035)', color: 'rgba(255,255,255,.62)' }}>Este borrador no afecta la numeracion fiscal y puede eliminarse directamente.</p>}
+        {deleting?.status !== 'draft' ? <textarea id="invoice-list-delete-reason" name="invoice-list-delete-reason" value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} className="input-dark min-h-32 w-full" placeholder="Motivo obligatorio de eliminacion, minimo 10 caracteres"  autoComplete="off" /> : <p className="rounded-lg p-3 text-sm" style={{ border: '1px solid var(--line)', background: 'rgba(255,255,255,.035)', color: 'rgba(255,255,255,.62)' }}>Este borrador no afecta la numeracion fiscal y puede eliminarse directamente.</p>}
       </Modal>
     </div>
   )
@@ -585,7 +585,7 @@ function PremiumInvoiceTable({ data, columns }) {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border" style={{ borderColor: 'var(--line)', background: 'var(--bg-surface)', padding: '12px 14px' }}>
         <div className="text-xs font-bold uppercase" style={{ color: 'var(--text-tertiary)' }}>{sorted.length} resultado(s) organizados</div>
         <div className="relative flex flex-wrap gap-2">
-          <select id="invoice-list-page-size" name="invoice-list-page-size" value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }} className="input-dark max-w-36" aria-label="invoice-list-page-size">
+          <select id="invoice-list-page-size" name="invoice-list-page-size" value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }} className="input-dark max-w-36" aria-label="invoice-list-page-size" autoComplete="off">
             <option value="10">10 por pagina</option>
             <option value="25">25 por pagina</option>
             <option value="50">50 por pagina</option>
@@ -596,7 +596,7 @@ function PremiumInvoiceTable({ data, columns }) {
             <div className="absolute right-0 top-12 z-[9999] grid min-w-56 gap-1 rounded-lg border p-2 shadow-2xl" style={{ borderColor: 'var(--line)', background: 'var(--bg-surface)' }}>
               {columns.map((column) => (
                 <label key={column.header} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-white/[0.06]" style={{ color: 'rgba(255,255,255,.7)' }}>
-                  <input id={"invoice-list-column-" + column.header} name={"invoice-list-column-" + column.header} type="checkbox" checked={visible.has(column.header)} onChange={() => toggleColumn(column.header)} />
+                  <input id={"invoice-list-column-" + column.header} name={"invoice-list-column-" + column.header} type="checkbox" checked={visible.has(column.header)} onChange={() => toggleColumn(column.header)}  autoComplete="off" />
                   {column.header}
                 </label>
               ))}

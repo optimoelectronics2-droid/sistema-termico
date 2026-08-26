@@ -69,11 +69,11 @@ export function EntryForm({ editingEntry, nextNumber, onSubmit, onCancelEdit, re
         {editingEntry ? <Button variant="ghost" onClick={onCancelEdit}>Cancelar edicion</Button> : null}
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-5">
-        <label><span className="label-dark">Tipo de entrada</span><select id="entry-type" name="entry-type" value={form.type} onChange={(e) => setForm((s) => ({ ...s, type: e.target.value }))} className="input-dark">{ENTRY_TYPES.map((type) => <option key={type}>{type}</option>)}</select></label>
-        <label><span className="label-dark">Proveedor</span><select id="entry-supplier" name="entry-supplier" value={form.supplierId} onChange={(e) => setForm((s) => ({ ...s, supplierId: e.target.value }))} className="input-dark">{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label>
+        <label><span className="label-dark">Tipo de entrada</span><select id="entry-type" name="entry-type" value={form.type} onChange={(e) => setForm((s) => ({ ...s, type: e.target.value }))} className="input-dark" autoComplete="off">{ENTRY_TYPES.map((type) => <option key={type}>{type}</option>)}</select></label>
+        <label><span className="label-dark">Proveedor</span><select id="entry-supplier" name="entry-supplier" value={form.supplierId} onChange={(e) => setForm((s) => ({ ...s, supplierId: e.target.value }))} className="input-dark" autoComplete="off">{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label>
         <DatePicker label="Fecha" value={form.date} onChange={(date) => setForm((s) => ({ ...s, date }))} />
-        <label><span className="label-dark">Factura proveedor</span><input id="entry-supplier-invoice" name="entry-supplier-invoice" value={form.supplierInvoice} onChange={(e) => setForm((s) => ({ ...s, supplierInvoice: e.target.value }))} className="input-dark" /></label>
-        <label><span className="label-dark">Referencia / nota</span><input id="entry-reference" name="entry-reference" value={form.reference} onChange={(e) => setForm((s) => ({ ...s, reference: e.target.value }))} className="input-dark" /></label>
+        <label><span className="label-dark">Factura proveedor</span><input id="entry-supplier-invoice" name="entry-supplier-invoice" value={form.supplierInvoice} onChange={(e) => setForm((s) => ({ ...s, supplierInvoice: e.target.value }))} className="input-dark"  autoComplete="off" /></label>
+        <label><span className="label-dark">Referencia / nota</span><input id="entry-reference" name="entry-reference" value={form.reference} onChange={(e) => setForm((s) => ({ ...s, reference: e.target.value }))} className="input-dark"  autoComplete="off" /></label>
       </div>
       <div className="premium-scroll mt-5 overflow-x-auto">
         <table className="min-w-[900px] w-full text-sm">
@@ -84,11 +84,11 @@ export function EntryForm({ editingEntry, nextNumber, onSubmit, onCancelEdit, re
               return (
                 <tr key={item.id} className="align-top">
                   <td className="w-80 py-3"><Autocomplete name={`product-search-${item.id}`} id={`product-search-${item.id}`} value={product} items={products} getMeta={(p) => `${p.sku} · Stock ${p.stock}`} getSearchText={(p) => `${p.name || ''} ${p.sku || ''} ${p.barcode || ''} ${p.model || ''} ${(p.serials || []).join(' ')}`} onSelect={(p) => setLine(item.id, { productId: p.id, cost: p.cost })} minQueryLength={1} startText="Busque el producto por nombre, codigo, modelo o serial" emptyText="Primero registre productos" /></td>
-                  <td className="py-3"><input id={`entry-qty-${item.id}`} name={`entry-qty-${item.id}`} type="number" value={item.quantity} onChange={(e) => setLine(item.id, { quantity: Number(e.target.value) })} className="input-dark w-24" aria-label={`entry-qty-${item.id}`} /></td>
-                  <td className="py-3"><input id={`entry-cost-${item.id}`} name={`entry-cost-${item.id}`} type="number" value={item.cost} onChange={(e) => setLine(item.id, { cost: Number(e.target.value) })} className="input-dark w-32" aria-label={`entry-cost-${item.id}`} /></td>
+                  <td className="py-3"><input id={`entry-qty-${item.id}`} name={`entry-qty-${item.id}`} type="number" value={item.quantity} onChange={(e) => setLine(item.id, { quantity: Number(e.target.value) })} className="input-dark w-24" aria-label={`entry-qty-${item.id}`}  autoComplete="off" /></td>
+                  <td className="py-3"><input id={`entry-cost-${item.id}`} name={`entry-cost-${item.id}`} type="number" value={item.cost} onChange={(e) => setLine(item.id, { cost: Number(e.target.value) })} className="input-dark w-32" aria-label={`entry-cost-${item.id}`}  autoComplete="off" /></td>
                   <td className="py-3 font-bold">{currency.format(Number(item.quantity || 0) * Number(item.cost || 0))}</td>
                   <td className="py-3">
-                    {product?.requiresSerial ? <textarea id={`entry-serials-${item.id}`} name={`entry-serials-${item.id}`} value={item.serialText} onChange={(e) => setLine(item.id, { serialText: e.target.value })} placeholder="Uno por linea o coma" className="input-dark min-h-20 w-64" /> : <span className="text-white/35">No aplica</span>}
+                    {product?.requiresSerial ? <textarea id={`entry-serials-${item.id}`} name={`entry-serials-${item.id}`} value={item.serialText} onChange={(e) => setLine(item.id, { serialText: e.target.value })} placeholder="Uno por linea o coma" className="input-dark min-h-20 w-64"  autoComplete="off" /> : <span className="text-white/35">No aplica</span>}
                   </td>
                   <td className="py-3"><button onClick={() => setForm((s) => ({ ...s, items: s.items.length === 1 ? [blankItem()] : s.items.filter((line) => line.id !== item.id) }))} className="text-red-300"><Trash2 size={16} /></button></td>
                 </tr>

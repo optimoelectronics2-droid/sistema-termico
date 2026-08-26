@@ -93,7 +93,7 @@ export function QuoteList() {
           <div className="toolbar-grid w-full lg:max-w-2xl">
             <label className="module-search-bar">
               <Search size={16} />
-              <input id="quote-search" name="quoteSearch" value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" placeholder="Buscar numero, cliente, estado" />
+              <input id="quote-search" name="quoteSearch" value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" placeholder="Buscar numero, cliente, estado"  autoComplete="off" />
             </label>
             <Button icon={Plus} onClick={() => navigate('/cotizaciones/nueva')}>Nueva cotizacion</Button>
           </div>
@@ -105,7 +105,7 @@ export function QuoteList() {
         {viewing ? <QuotePreview quote={viewing} company={company} customer={customers.find((customer) => customer.id === viewing.customerId)} /> : null}
       </Modal>
       <Modal open={Boolean(convert)} onClose={() => setConvert(null)} title="Convertir cotizacion a factura" size="sm" footer={<div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setConvert(null)}>Cancelar</Button><Button variant="success" onClick={() => action(() => { const draft = convertQuoteToInvoice(convert.id, ncfType); setConvert(null); return draft }, 'Cotizacion convertida a borrador de factura.')}>Convertir</Button></div>}>
-        <label htmlFor="quote-convert-ncf"><span className="label-dark">Tipo NCF</span><select id="quote-convert-ncf" name="quoteConvertNcf" value={ncfType} onChange={(e) => setNcfType(e.target.value)} className="input-dark"><option>B01</option><option>B02</option><option>B14</option><option>B15</option><option>E31</option><option>E32</option><option>NO_FISCAL</option></select></label>
+        <label htmlFor="quote-convert-ncf"><span className="label-dark">Tipo NCF</span><select id="quote-convert-ncf" name="quoteConvertNcf" value={ncfType} onChange={(e) => setNcfType(e.target.value)} className="input-dark" autoComplete="off"><option>B01</option><option>B02</option><option>B14</option><option>B15</option><option>E31</option><option>E32</option><option>NO_FISCAL</option></select></label>
       </Modal>
       <ConfirmDialog state={confirmState} onClose={close} />
     </div>

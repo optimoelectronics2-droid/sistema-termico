@@ -183,13 +183,13 @@ export function AccountingJournal() {
             ))}
           </div>
           <div className="grid w-full gap-2 lg:max-w-5xl lg:grid-cols-[140px_120px_140px_120px_1fr]">
-            <input id="journal-date-from" type="date" value={range.dateFrom} onChange={(event) => setRange((state) => ({ ...state, dateFrom: event.target.value }))} className="input-dark" aria-label="journal-date-from" />
-            <input id="journal-time-from" type="time" value={range.timeFrom} onChange={(event) => setRange((state) => ({ ...state, timeFrom: event.target.value }))} className="input-dark" aria-label="journal-time-from" />
-            <input id="journal-date-to" type="date" value={range.dateTo} onChange={(event) => setRange((state) => ({ ...state, dateTo: event.target.value }))} className="input-dark" aria-label="journal-date-to" />
-            <input id="journal-time-to" type="time" value={range.timeTo} onChange={(event) => setRange((state) => ({ ...state, timeTo: event.target.value }))} className="input-dark" aria-label="journal-time-to" />
+            <input id="journal-date-from" type="date" value={range.dateFrom} onChange={(event) => setRange((state) => ({ ...state, dateFrom: event.target.value }))} className="input-dark" aria-label="journal-date-from"  autoComplete="off" />
+            <input id="journal-time-from" type="time" value={range.timeFrom} onChange={(event) => setRange((state) => ({ ...state, timeFrom: event.target.value }))} className="input-dark" aria-label="journal-time-from"  autoComplete="off" />
+            <input id="journal-date-to" type="date" value={range.dateTo} onChange={(event) => setRange((state) => ({ ...state, dateTo: event.target.value }))} className="input-dark" aria-label="journal-date-to"  autoComplete="off" />
+            <input id="journal-time-to" type="time" value={range.timeTo} onChange={(event) => setRange((state) => ({ ...state, timeTo: event.target.value }))} className="input-dark" aria-label="journal-time-to"  autoComplete="off" />
             <label className="module-search-bar">
               <Search size={15} className="text-white/35" />
-              <input id="journal-query" value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm font-bold outline-none placeholder:text-white/35" placeholder="Buscar asiento, cuenta, cliente, usuario, referencia..." />
+              <input id="journal-query" value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm font-bold outline-none placeholder:text-white/35" placeholder="Buscar asiento, cuenta, cliente, usuario, referencia..."  autoComplete="off" />
             </label>
           </div>
         </div>

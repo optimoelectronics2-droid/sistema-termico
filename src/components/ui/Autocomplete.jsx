@@ -82,7 +82,7 @@ export function Autocomplete({
         onChange={(event) => setQuery(event.target.value)}
         placeholder={placeholder}
         className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-sm outline-none transition focus:border-blue-400/60 disabled:opacity-50"
-      />
+       autoComplete="off" />
       {focused ? createPortal(
         <div className="fixed z-[35] max-h-72 overflow-auto rounded-lg border border-white/10 bg-[#111118] p-1 shadow-2xl shadow-black/60" style={{ ...menuRect, maxWidth: 'min(92vw, 480px)' }}>
           {deferredQuery.trim().length < minQueryLength ? (

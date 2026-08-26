@@ -311,13 +311,13 @@ export function EntryLabelPrinter({ entry, onClose }) {
       </div>
 
       <div className="no-print grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        <label className="lg:col-span-2"><span className="label-dark">Tamaño de etiqueta</span><select id="entry-label-size" value={labelSize.id} onChange={(event) => setLabelSize(LABEL_CHOICES.find((size) => size.id === event.target.value) || LABEL_CHOICES[0])} className="input-dark">{LABEL_CHOICES.map((size) => <option key={size.id} value={size.id}>{size.name}</option>)}</select></label>
+        <label className="lg:col-span-2"><span className="label-dark">Tamaño de etiqueta</span><select id="entry-label-size" value={labelSize.id} onChange={(event) => setLabelSize(LABEL_CHOICES.find((size) => size.id === event.target.value) || LABEL_CHOICES[0])} className="input-dark" autoComplete="off">{LABEL_CHOICES.map((size) => <option key={size.id} value={size.id}>{size.name}</option>)}</select></label>
         {format === 'thermal' ? (
-          <label><span className="label-dark">Protocolo termico</span><select id="entry-label-protocol" value={protocol} onChange={(event) => setProtocol(event.target.value)} className="input-dark">{THERMAL_PROTOCOLS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+          <label><span className="label-dark">Protocolo termico</span><select id="entry-label-protocol" value={protocol} onChange={(event) => setProtocol(event.target.value)} className="input-dark" autoComplete="off">{THERMAL_PROTOCOLS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
         ) : null}
-        <label className="flex items-end gap-2 pb-2 text-sm"><input id="entry-label-price" type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)} /> Precio</label>
-        <label className="flex items-end gap-2 pb-2 text-sm"><input id="entry-label-cost" type="checkbox" checked={showCost} onChange={(e) => setShowCost(e.target.checked)} /> Costo</label>
-        <label className="flex items-end gap-2 pb-2 text-sm"><input id="entry-label-sku" type="checkbox" checked={showSku} onChange={(e) => setShowSku(e.target.checked)} /> SKU</label>
+        <label className="flex items-end gap-2 pb-2 text-sm"><input id="entry-label-price" type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)}  autoComplete="off" /> Precio</label>
+        <label className="flex items-end gap-2 pb-2 text-sm"><input id="entry-label-cost" type="checkbox" checked={showCost} onChange={(e) => setShowCost(e.target.checked)}  autoComplete="off" /> Costo</label>
+        <label className="flex items-end gap-2 pb-2 text-sm"><input id="entry-label-sku" type="checkbox" checked={showSku} onChange={(e) => setShowSku(e.target.checked)}  autoComplete="off" /> SKU</label>
       </div>
 
       <div className="no-print flex flex-wrap items-center gap-2">

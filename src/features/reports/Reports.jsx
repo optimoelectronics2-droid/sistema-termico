@@ -309,35 +309,35 @@ export function Reports() {
                   onChange={(e) => setFilter('query', e.target.value)}
                   className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] pl-11 pr-4 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
                   placeholder="Buscar factura, cliente, producto, NCF, serie, vendedor..."
-                />
+                 autoComplete="off" />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 <div className="space-y-1.5">
                   <label htmlFor="report-quick-range" className="text-xs font-bold text-[#94A3B8]">Periodo</label>
-                  <select id="report-quick-range" value={filters.quickRange} onChange={(e) => setQuickRange(e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30">{quickDateRanges.map((item) => <option key={item.id} value={item.id} className="bg-[#0f172a]">{item.label}</option>)}</select>
+                  <select id="report-quick-range" value={filters.quickRange} onChange={(e) => setQuickRange(e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" autoComplete="off">{quickDateRanges.map((item) => <option key={item.id} value={item.id} className="bg-[#0f172a]">{item.label}</option>)}</select>
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="report-date-from" className="text-xs font-bold text-[#94A3B8]">Fecha inicio</label>
-                  <input id="report-date-from" type="date" value={filters.dateFrom} onChange={(e) => setFilter('dateFrom', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" />
+                  <input id="report-date-from" type="date" value={filters.dateFrom} onChange={(e) => setFilter('dateFrom', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"  autoComplete="off" />
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="report-date-to" className="text-xs font-bold text-[#94A3B8]">Fecha fin</label>
-                  <input id="report-date-to" type="date" value={filters.dateTo} onChange={(e) => setFilter('dateTo', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" />
+                  <input id="report-date-to" type="date" value={filters.dateTo} onChange={(e) => setFilter('dateTo', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"  autoComplete="off" />
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="report-time-from" className="text-xs font-bold text-[#94A3B8]">Hora inicio</label>
-                  <input id="report-time-from" type="time" value={filters.timeFrom} onChange={(e) => setFilter('timeFrom', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" />
+                  <input id="report-time-from" type="time" value={filters.timeFrom} onChange={(e) => setFilter('timeFrom', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"  autoComplete="off" />
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="report-time-to" className="text-xs font-bold text-[#94A3B8]">Hora fin</label>
-                  <input id="report-time-to" type="time" value={filters.timeTo} onChange={(e) => setFilter('timeTo', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" />
+                  <input id="report-time-to" type="time" value={filters.timeTo} onChange={(e) => setFilter('timeTo', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"  autoComplete="off" />
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="report-exact-date" className="text-xs font-bold text-[#94A3B8]">Dia exacto</label>
                   <div className="relative">
                     <CalendarDays size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-                    <input id="report-exact-date" type="date" value={filters.exactDate} onChange={(e) => setFilter('exactDate', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] pl-9 pr-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" />
+                    <input id="report-exact-date" type="date" value={filters.exactDate} onChange={(e) => setFilter('exactDate', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] pl-9 pr-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"  autoComplete="off" />
                   </div>
                 </div>
               </div>
@@ -345,23 +345,23 @@ export function Reports() {
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 <div className="space-y-1.5">
                   <label htmlFor="report-month" className="text-xs font-bold text-[#94A3B8]">Mes</label>
-                  <input id="report-month" type="month" value={filters.month} onChange={(e) => setFilter('month', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" />
+                  <input id="report-month" type="month" value={filters.month} onChange={(e) => setFilter('month', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"  autoComplete="off" />
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="report-year" className="text-xs font-bold text-[#94A3B8]">Ano</label>
-                  <input id="report-year" type="number" value={filters.year} onChange={(e) => setFilter('year', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="2026" />
+                  <input id="report-year" type="number" value={filters.year} onChange={(e) => setFilter('year', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="2026"  autoComplete="off" />
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="report-amount-min" className="text-xs font-bold text-[#94A3B8]">Monto minimo</label>
-                  <input id="report-amount-min" type="number" value={filters.amountMin} onChange={(e) => setFilter('amountMin', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="RD$ 0" />
+                  <input id="report-amount-min" type="number" value={filters.amountMin} onChange={(e) => setFilter('amountMin', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="RD$ 0"  autoComplete="off" />
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="report-amount-max" className="text-xs font-bold text-[#94A3B8]">Monto maximo</label>
-                  <input id="report-amount-max" type="number" value={filters.amountMax} onChange={(e) => setFilter('amountMax', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="RD$ 999,999" />
+                  <input id="report-amount-max" type="number" value={filters.amountMax} onChange={(e) => setFilter('amountMax', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="RD$ 999,999"  autoComplete="off" />
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="report-status" className="text-xs font-bold text-[#94A3B8]">Estado</label>
-                  <select id="report-status" value={filters.status} onChange={(e) => setFilter('status', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30">
+                  <select id="report-status" value={filters.status} onChange={(e) => setFilter('status', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" autoComplete="off">
                     <option value="all" className="bg-[#0f172a]">Todos</option>
                     <option value="paid" className="bg-[#0f172a]">Pagada</option>
                     <option value="credit" className="bg-[#0f172a]">Credito</option>
@@ -371,7 +371,7 @@ export function Reports() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-[#94A3B8]">Agrupar por</label>
-                  <select id="report-group-by" value={filters.groupBy} onChange={(e) => setFilter('groupBy', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30">
+                  <select id="report-group-by" value={filters.groupBy} onChange={(e) => setFilter('groupBy', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" autoComplete="off">
                     {groupOptions.map((item) => <option key={item.id} value={item.id} className="bg-[#0f172a]">{item.label}</option>)}
                   </select>
                 </div>
@@ -459,7 +459,7 @@ export function Reports() {
                   <h3 className="font-display text-2xl font-bold">Resumen de ganancias {profitReport.label}</h3>
                 </div>
                 <div className="no-print flex items-center gap-2">
-                  <select id="report-profit-period" value={profitPeriod} onChange={(e) => setProfitPeriod(e.target.value)} className="input-dark w-40">
+                  <select id="report-profit-period" value={profitPeriod} onChange={(e) => setProfitPeriod(e.target.value)} className="input-dark w-40" autoComplete="off">
                     <option value="filtered">Periodo filtrado</option>
                     <option value="historical">Historico</option>
                   </select>
@@ -504,7 +504,7 @@ export function Reports() {
             <div id="report-period-table">
             <Panel title="Acumulados por fecha">
               <div className="no-print mb-3 flex justify-end">
-                <select id="report-period-select" value={periodTable} onChange={(e) => setPeriodTable(e.target.value)} className="input-dark w-36">
+                <select id="report-period-select" value={periodTable} onChange={(e) => setPeriodTable(e.target.value)} className="input-dark w-36" autoComplete="off">
                   <option value="daily">Diario</option>
                   <option value="weekly">Semanal</option>
                   <option value="monthly">Mensual</option>
@@ -736,23 +736,23 @@ function AdvancedFilters({ filters, setFilter, setQuickRange }) {
         <div className="grid gap-4 border-t border-[#243244] p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-[#94A3B8]">Vendedor</label>
-            <input id="report-seller" value={filters.seller || ''} onChange={(e) => setFilter('seller', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="Vendedor" />
+            <input id="report-seller" value={filters.seller || ''} onChange={(e) => setFilter('seller', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="Vendedor"  autoComplete="off" />
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-[#94A3B8]">Metodo de pago</label>
-            <input id="report-payment-method" value={filters.paymentMethod || ''} onChange={(e) => setFilter('paymentMethod', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="Efectivo, Tarjeta..." />
+            <input id="report-payment-method" value={filters.paymentMethod || ''} onChange={(e) => setFilter('paymentMethod', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="Efectivo, Tarjeta..."  autoComplete="off" />
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-[#94A3B8]">Tipo NCF</label>
-            <input id="report-ncf-type" value={filters.ncfType || ''} onChange={(e) => setFilter('ncfType', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="B01, B02..." />
+            <input id="report-ncf-type" value={filters.ncfType || ''} onChange={(e) => setFilter('ncfType', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="B01, B02..."  autoComplete="off" />
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-[#94A3B8]">Cliente</label>
-            <input id="report-customer" value={filters.customer || ''} onChange={(e) => setFilter('customer', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="Nombre del cliente" />
+            <input id="report-customer" value={filters.customer || ''} onChange={(e) => setFilter('customer', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="Nombre del cliente"  autoComplete="off" />
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-[#94A3B8]">Categoria</label>
-            <input id="report-category" value={filters.category || ''} onChange={(e) => setFilter('category', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="Categoria" />
+            <input id="report-category" value={filters.category || ''} onChange={(e) => setFilter('category', e.target.value)} className="h-11 w-full rounded-xl border border-[#243244] bg-[#0f172a] px-3 text-sm text-[#F8FAFC] outline-none transition placeholder:text-[#94A3B8]/60 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" placeholder="Categoria"  autoComplete="off" />
           </div>
         </div>
       ) : null}

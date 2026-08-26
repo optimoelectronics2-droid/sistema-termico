@@ -219,15 +219,15 @@ export function FinancialMovements() {
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg px-3 py-2" style={{ border: '1px solid var(--line)', background: 'var(--bg-input)' }}>
             <Search size={16} style={{ color: 'var(--text-tertiary)' }} />
-            <input id="financial-query" name="financial-query" value={query} onChange={(e) => setQuery(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" placeholder="Buscar por documento, cliente, tipo, metodo, comentario..." aria-label="financial-query" />
+            <input id="financial-query" name="financial-query" value={query} onChange={(e) => setQuery(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" placeholder="Buscar por documento, cliente, tipo, metodo, comentario..." aria-label="financial-query"  autoComplete="off" />
           </div>
           <label className="flex items-center gap-2 text-xs font-bold" style={{ color: 'var(--text-secondary)' }}>
             <CalendarDays size={14} />
-            <input id="financial-date-from" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="input-dark max-w-36" />
+            <input id="financial-date-from" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="input-dark max-w-36"  autoComplete="off" />
             <span>-</span>
-            <input id="financial-date-to" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="input-dark max-w-36" />
+            <input id="financial-date-to" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="input-dark max-w-36"  autoComplete="off" />
           </label>
-          <select id="financial-type-filter" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="input-dark max-w-40" aria-label="financial-type-filter">
+          <select id="financial-type-filter" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="input-dark max-w-40" aria-label="financial-type-filter" autoComplete="off">
             <option value="all">Todos los tipos</option>
             {types.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -342,5 +342,5 @@ function TypeBadge({ type }) {
 }
 
 function Input({ label, value, onChange, type = 'text', step, name }) {
-  return <label><span className="label-dark">{label}</span><input id={name} name={name} type={type} step={step} value={value} onChange={(e) => onChange(e.target.value)} className="input-dark" /></label>
+  return <label><span className="label-dark">{label}</span><input id={name} name={name} type={type} step={step} value={value} onChange={(e) => onChange(e.target.value)} className="input-dark"  autoComplete="off" /></label>
 }

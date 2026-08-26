@@ -141,20 +141,20 @@ export default function LabelPrinterProfileDialog({ design, profiles: initialPro
         <div className="space-y-3">
           <label className="block">
             <span className="text-white/50">Nombre del perfil</span>
-            <input id="profile-name" value={activeProfile.name} onChange={e => updateProfile({ name: e.target.value })} className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1.5 text-white" />
+            <input id="profile-name" value={activeProfile.name} onChange={e => updateProfile({ name: e.target.value })} className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1.5 text-white"  autoComplete="off" />
           </label>
 
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
               <span className="text-white/50">Marca</span>
-              <select id="profile-brand" value={activeProfile.brand} onChange={e => updateProfile({ brand: e.target.value })} className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1.5 text-white">
+              <select id="profile-brand" value={activeProfile.brand} onChange={e => updateProfile({ brand: e.target.value })} className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1.5 text-white" autoComplete="off">
                 <option value="">Seleccione</option>
                 {BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </label>
             <label className="block">
               <span className="text-white/50">Modelo</span>
-              <input id="profile-model" value={activeProfile.model} onChange={e => updateProfile({ model: e.target.value })} className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1.5 text-white" />
+              <input id="profile-model" value={activeProfile.model} onChange={e => updateProfile({ model: e.target.value })} className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1.5 text-white"  autoComplete="off" />
             </label>
           </div>
 
@@ -162,7 +162,7 @@ export default function LabelPrinterProfileDialog({ design, profiles: initialPro
           <label className="block">
             <span className="text-white/50">Metodo de salida</span>
             <select id="profile-protocol" value={activeProfile.protocol} onChange={e => updateProfile({ protocol: e.target.value })}
-              className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1.5 text-white">
+              className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1.5 text-white" autoComplete="off">
               {OUTPUT_METHODS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
             </select>
             <p className="mt-1 text-xs text-white/40">{OUTPUT_METHODS.find(m => m.id === activeProfile.protocol)?.desc}</p>
@@ -171,7 +171,7 @@ export default function LabelPrinterProfileDialog({ design, profiles: initialPro
           <label className="block">
             <span className="text-white/50">DPI</span>
             <select id="profile-dpi" value={activeProfile.dpi} onChange={e => updateProfile({ dpi: Number(e.target.value) })}
-              className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1.5 text-white">
+              className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1.5 text-white" autoComplete="off">
               {DPI_VALUES.map(d => <option key={d} value={d}>{d} DPI{d === 203 ? ' (estandar etiquetas)' : d === 300 ? ' (alta calidad)' : ' (ultra alta)'}</option>)}
             </select>
           </label>
@@ -184,27 +184,27 @@ export default function LabelPrinterProfileDialog({ design, profiles: initialPro
             <label><span className="text-white/50">Offset X (mm)</span>
               <input id="profile-offsetX" type="number" step="0.1" min="-10" max="10" value={activeProfile.calibration?.offsetX ?? 0}
                 onChange={e => updateProfile({ calibration: { offsetX: Number(e.target.value) } })}
-                className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white" />
+                className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white"  autoComplete="off" />
             </label>
             <label><span className="text-white/50">Offset Y (mm)</span>
               <input id="profile-offsetY" type="number" step="0.1" min="-10" max="10" value={activeProfile.calibration?.offsetY ?? 0}
                 onChange={e => updateProfile({ calibration: { offsetY: Number(e.target.value) } })}
-                className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white" />
+                className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white"  autoComplete="off" />
             </label>
             <label><span className="text-white/50">Escala X</span>
               <input id="profile-scaleX" type="number" step="0.001" min="0.9" max="1.1" value={activeProfile.calibration?.scaleX ?? 1}
                 onChange={e => updateProfile({ calibration: { scaleX: Number(e.target.value) } })}
-                className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white" />
+                className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white"  autoComplete="off" />
             </label>
             <label><span className="text-white/50">Escala Y</span>
               <input id="profile-scaleY" type="number" step="0.001" min="0.9" max="1.1" value={activeProfile.calibration?.scaleY ?? 1}
                 onChange={e => updateProfile({ calibration: { scaleY: Number(e.target.value) } })}
-                className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white" />
+                className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white"  autoComplete="off" />
             </label>
             <label><span className="text-white/50">Gap entre etiquetas (mm)</span>
               <input id="profile-gap" type="number" step="0.5" min="0" max="10" value={activeProfile.calibration?.labelGap ?? 2}
                 onChange={e => updateProfile({ calibration: { labelGap: Number(e.target.value) } })}
-                className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white" />
+                className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white"  autoComplete="off" />
             </label>
           </div>
         </fieldset>
@@ -222,12 +222,12 @@ export default function LabelPrinterProfileDialog({ design, profiles: initialPro
               <label className="block">
                 <span className="text-white/50">IP de la impresora</span>
                 <input id="profile-ip" type="text" value={printerIp} onChange={e => setPrinterIp(e.target.value)}
-                  className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white" placeholder="192.168.1.100" />
+                  className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white" placeholder="192.168.1.100"  autoComplete="off" />
               </label>
               <label className="block">
                 <span className="text-white/50">Puerto</span>
                 <input id="profile-port" type="number" value={printerPort} onChange={e => setPrinterPort(Number(e.target.value))}
-                  className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white" />
+                  className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white"  autoComplete="off" />
               </label>
               <p className="text-xs text-white/40">O descargue el archivo .zpl y envielo a la impresora via TCP puerto 9100.</p>
             </div>
@@ -247,7 +247,7 @@ export default function LabelPrinterProfileDialog({ design, profiles: initialPro
               <label className="block">
                 <span className="text-white/50">Baud rate</span>
                 <select id="profile-baud" value={baudRate} onChange={e => setBaudRate(Number(e.target.value))}
-                  className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white">
+                  className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1 text-white" autoComplete="off">
                   {getBaudRates().map(b => <option key={b} value={b}>{b}</option>)}
                 </select>
               </label>

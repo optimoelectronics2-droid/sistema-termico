@@ -166,15 +166,15 @@ export function EntryHistory({ entries, onView, onLabels, onEdit, onDelete, show
       <div className="mb-6 flex flex-wrap items-end gap-3">
         <label>
           <span className="label-dark">Desde</span>
-          <input id="history-from" name="history-from" type="date" value={dateFrom || ''} onChange={(event) => { setChip(''); setDateFrom(event.target.value) }} className="input-dark" />
+          <input id="entryhistory-history-from" name="entryhistory-history-from" type="date" value={dateFrom || ''} onChange={(event) => { setChip(''); setDateFrom(event.target.value) }} className="input-dark"  autoComplete="off" />
         </label>
         <label>
           <span className="label-dark">Hasta</span>
-          <input id="history-to" name="history-to" type="date" value={dateTo || ''} onChange={(event) => { setChip(''); setDateTo(event.target.value) }} className="input-dark" />
+          <input id="entryhistory-history-to" name="entryhistory-history-to" type="date" value={dateTo || ''} onChange={(event) => { setChip(''); setDateTo(event.target.value) }} className="input-dark"  autoComplete="off" />
         </label>
         <label>
           <span className="label-dark">Tipo de entrada</span>
-          <select id="history-type" name="history-type" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="input-dark">
+          <select id="history-type" name="history-type" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="input-dark" autoComplete="off">
             <option value="all">Todos los tipos</option>
             {ENTRY_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
           </select>
@@ -183,7 +183,7 @@ export function EntryHistory({ entries, onView, onLabels, onEdit, onDelete, show
           <span className="label-dark">Buscar</span>
           <span className="flex items-center gap-2 rounded-[10px] border px-3" style={{ background: 'var(--bg-input)', borderColor: 'var(--line)' }}>
             <Search size={14} style={{ color: 'var(--text-tertiary)' }} />
-            <input id="history-search" name="history-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Producto, proveedor, referencia o factura" className="w-full bg-transparent py-2.5 text-sm outline-none placeholder:text-white/30" />
+            <input id="history-search" name="history-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Producto, proveedor, referencia o factura" className="w-full bg-transparent py-2.5 text-sm outline-none placeholder:text-white/30"  autoComplete="off" />
           </span>
         </label>
       </div>
@@ -261,7 +261,7 @@ export function EntryHistory({ entries, onView, onLabels, onEdit, onDelete, show
         <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3" style={{ borderColor: 'var(--line)', background: 'rgba(255,255,255,.02)' }}>
           <span className="text-xs font-bold" style={{ color: 'var(--text-tertiary)' }}>{sortedRows.length ? `Mostrando ${(safePage - 1) * pageSize + 1}–${Math.min(safePage * pageSize, sortedRows.length)} de ${sortedRows.length} linea(s) · ${stats.entries} entrada(s)` : 'Sin resultados'}</span>
           <div className="flex items-center gap-2">
-            <select id="history-page-size" name="history-page-size" value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))} className="input-dark max-w-32 py-1.5 text-xs" aria-label="history-page-size">
+            <select id="history-page-size" name="history-page-size" value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))} className="input-dark max-w-32 py-1.5 text-xs" aria-label="history-page-size" autoComplete="off">
               {[10, 25, 50, 100].map((option) => <option key={option} value={option}>{option} por pagina</option>)}
             </select>
             <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={safePage <= 1} className="rounded-lg border px-3 py-1.5 text-xs font-bold transition disabled:opacity-40" style={{ borderColor: 'var(--line)', background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}>Anterior</button>

@@ -275,12 +275,12 @@ export function InvoiceForm({ initialInvoice, duplicateOf, onDone }) {
         <section className="panel rounded-lg p-4">
           <p className="text-xs font-extrabold uppercase text-blue-200/80">Factura</p>
           <div className="mt-3 space-y-3">
-            <select id="invoice-ncf-type" name="invoice-ncf-type" value={form.ncfType} onChange={(event) => setField('ncfType', event.target.value)} className="input-dark" aria-label="invoice-ncf-type">
+            <select id="invoice-ncf-type" name="invoice-ncf-type" value={form.ncfType} onChange={(event) => setField('ncfType', event.target.value)} className="input-dark" aria-label="invoice-ncf-type" autoComplete="off">
               {ncfOptions(form.mode).map((type) => <option key={type} value={type}>{type} {ncfTypes[type] || ''}</option>)}
             </select>
-            {editingIssued ? <input id="invoice-number" name="invoice-number" value={form.number} onChange={(event) => setField('number', event.target.value)} className="input-dark" placeholder="Numero / correlativo" aria-label="invoice-number" /> : null}
-            {editingIssued ? <input id="invoice-ncf" name="invoice-ncf" value={form.ncf} onChange={(event) => setField('ncf', event.target.value)} className="input-dark" placeholder="NCF editable" aria-label="invoice-ncf" /> : null}
-            <select id="invoice-mode" name="invoice-mode" value={form.mode} onChange={(event) => setField('mode', event.target.value)} className="input-dark" aria-label="invoice-mode">
+            {editingIssued ? <input id="invoice-number" name="invoice-number" value={form.number} onChange={(event) => setField('number', event.target.value)} className="input-dark" placeholder="Numero / correlativo" aria-label="invoice-number"  autoComplete="off" /> : null}
+            {editingIssued ? <input id="invoice-ncf" name="invoice-ncf" value={form.ncf} onChange={(event) => setField('ncf', event.target.value)} className="input-dark" placeholder="NCF editable" aria-label="invoice-ncf"  autoComplete="off" /> : null}
+            <select id="invoice-mode" name="invoice-mode" value={form.mode} onChange={(event) => setField('mode', event.target.value)} className="input-dark" aria-label="invoice-mode" autoComplete="off">
               <option value={invoiceModes.TAXED}>Con ITBIS</option>
               <option value={invoiceModes.NO_TAX}>Sin ITBIS</option>
               <option value={invoiceModes.MIXED}>Mixta</option>
@@ -291,12 +291,12 @@ export function InvoiceForm({ initialInvoice, duplicateOf, onDone }) {
           </button>
           {advancedOpen ? (
             <div className="mt-3 space-y-3">
-              <input id="invoice-issue-date" name="invoice-issue-date" type="date" value={form.issueDate} onChange={(event) => setField('issueDate', event.target.value)} className="input-dark" aria-label="invoice-issue-date" />
-              <select id="invoice-seller" name="invoice-seller" value={form.seller} onChange={(event) => setField('seller', event.target.value)} className="input-dark" aria-label="invoice-seller">
+              <input id="invoice-issue-date" name="invoice-issue-date" type="date" value={form.issueDate} onChange={(event) => setField('issueDate', event.target.value)} className="input-dark" aria-label="invoice-issue-date"  autoComplete="off" />
+              <select id="invoice-seller" name="invoice-seller" value={form.seller} onChange={(event) => setField('seller', event.target.value)} className="input-dark" aria-label="invoice-seller" autoComplete="off">
                 {['Administrador', ...users.map((user) => user.name)].map((user) => <option key={user}>{user}</option>)}
               </select>
-              <input id="invoice-global-discount" name="invoice-global-discount" type="number" min="0" max="10" value={form.globalDiscount} onChange={(event) => setField('globalDiscount', Number(event.target.value))} className="input-dark" placeholder="Descuento global %" aria-label="invoice-global-discount" />
-              <textarea id="invoice-customer-notes" name="invoice-customer-notes" value={form.notesCustomer} onChange={(event) => setField('notesCustomer', event.target.value)} className="input-dark min-h-20" placeholder="Nota para el cliente" />
+              <input id="invoice-global-discount" name="invoice-global-discount" type="number" min="0" max="10" value={form.globalDiscount} onChange={(event) => setField('globalDiscount', Number(event.target.value))} className="input-dark" placeholder="Descuento global %" aria-label="invoice-global-discount"  autoComplete="off" />
+              <textarea id="invoice-customer-notes" name="invoice-customer-notes" value={form.notesCustomer} onChange={(event) => setField('notesCustomer', event.target.value)} className="input-dark min-h-20" placeholder="Nota para el cliente"  autoComplete="off" />
             </div>
           ) : null}
         </section>
@@ -331,17 +331,17 @@ export function InvoiceForm({ initialInvoice, duplicateOf, onDone }) {
                       <td className="py-3">
                         <p className="font-bold text-white">{line.name}</p>
                         <p className="text-xs text-white/40">{line.sku || 'Sin SKU'} · Stock {product?.stock ?? 'N/A'} · {product?.category || 'Producto'}</p>
-                        {product?.requiresSerial ? <select id={`line-${line.id}-serial`} name={`line-${line.id}-serial`} value={line.serials?.[0] || ''} onChange={(event) => updateLine(line.id, { serials: event.target.value ? [event.target.value] : [] })} className="input-dark mt-2 max-w-48" aria-label={`line-${line.id}-serial`}><option value="">Serial/IMEI</option>{(product.serials || []).map((serial) => <option key={serial}>{serial}</option>)}</select> : null}
+                        {product?.requiresSerial ? <select id={`line-${line.id}-serial`} name={`line-${line.id}-serial`} value={line.serials?.[0] || ''} onChange={(event) => updateLine(line.id, { serials: event.target.value ? [event.target.value] : [] })} className="input-dark mt-2 max-w-48" aria-label={`line-${line.id}-serial`} autoComplete="off"><option value="">Serial/IMEI</option>{(product.serials || []).map((serial) => <option key={serial}>{serial}</option>)}</select> : null}
                       </td>
                       <td className="py-3">
                         <div className="flex items-center gap-2">
                           <button type="button" onClick={() => updateLine(line.id, { quantity: Math.max(1, Number(line.quantity || 1) - 1) })} className="rounded bg-white/10 p-1"><Minus size={14} /></button>
-                          <input id={`line-${line.id}-quantity`} name={`line-${line.id}-quantity`} type="number" min="1" value={line.quantity} onChange={(event) => updateLine(line.id, { quantity: Number(event.target.value) })} className="input-dark w-16 text-center" aria-label={`line-${line.id}-quantity`} />
+                          <input id={`line-${line.id}-quantity`} name={`line-${line.id}-quantity`} type="number" min="1" value={line.quantity} onChange={(event) => updateLine(line.id, { quantity: Number(event.target.value) })} className="input-dark w-16 text-center" aria-label={`line-${line.id}-quantity`}  autoComplete="off" />
                           <button type="button" onClick={() => updateLine(line.id, { quantity: Number(line.quantity || 0) + 1 })} className="rounded bg-white/10 p-1"><Plus size={14} /></button>
                         </div>
                       </td>
-                      <td className="py-3"><input id={`line-${line.id}-price`} name={`line-${line.id}-price`} type="number" value={line.price} onChange={(event) => updateLine(line.id, { price: Number(event.target.value) })} className="input-dark w-28" aria-label={`line-${line.id}-price`} /></td>
-                      <td className="py-3">{form.mode === invoiceModes.MIXED ? <input id={`line-${line.id}-taxable`} name={`line-${line.id}-taxable`} type="checkbox" checked={line.taxable} onChange={(event) => updateLine(line.id, { taxable: event.target.checked })} aria-label={`line-${line.id}-taxable`} /> : line.taxable ? 'Si' : 'No'}</td>
+                      <td className="py-3"><input id={`line-${line.id}-price`} name={`line-${line.id}-price`} type="number" value={line.price} onChange={(event) => updateLine(line.id, { price: Number(event.target.value) })} className="input-dark w-28" aria-label={`line-${line.id}-price`}  autoComplete="off" /></td>
+                      <td className="py-3">{form.mode === invoiceModes.MIXED ? <input id={`line-${line.id}-taxable`} name={`line-${line.id}-taxable`} type="checkbox" checked={line.taxable} onChange={(event) => updateLine(line.id, { taxable: event.target.checked })} aria-label={`line-${line.id}-taxable`}  autoComplete="off" /> : line.taxable ? 'Si' : 'No'}</td>
                       <td className="py-3 font-bold">{currency.format((calc?.net || 0) + (calc?.tax || 0))}</td>
                       <td className="py-3 text-right"><button type="button" onClick={() => removeLine(line.id)} className="text-red-300"><Trash2 size={17} /></button></td>
                     </tr>
@@ -380,19 +380,19 @@ export function InvoiceForm({ initialInvoice, duplicateOf, onDone }) {
               ))}
             </div>
           </div>
-          <label htmlFor="invoice-due-date"><span className="label-dark">Vencimiento</span><input id="invoice-due-date" name="invoice-due-date" type="date" value={form.dueDate} onChange={(event) => setField('dueDate', event.target.value)} className="input-dark" /></label>
+          <label htmlFor="invoice-due-date"><span className="label-dark">Vencimiento</span><input id="invoice-due-date" name="invoice-due-date" type="date" value={form.dueDate} onChange={(event) => setField('dueDate', event.target.value)} className="input-dark"  autoComplete="off" /></label>
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-extrabold uppercase text-blue-200/80">Pagos</p>
             <button type="button" onClick={addPayment} disabled={form.paymentPlan === 'fiado'} className="rounded-md border border-white/10 px-2 py-1 text-xs font-bold text-white/60 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-35">Agregar</button>
           </div>
           {form.paymentPlan === 'fiado' ? <div className="rounded-lg border border-amber-300/20 bg-amber-500/10 p-3 text-sm text-amber-100">Fiado: no se registra pago inicial. Se genera CxC por el total.</div> : form.payments.map((payment) => (
             <div key={payment.id} className="grid gap-2 rounded-lg border border-white/10 bg-black/15 p-2">
-              <select id={`payment-${payment.id}-method`} name={`payment-${payment.id}-method`} value={payment.method} onChange={(event) => updatePayment(payment.id, { method: event.target.value })} className="input-dark py-2" aria-label={`payment-${payment.id}-method`}>
+              <select id={`payment-${payment.id}-method`} name={`payment-${payment.id}-method`} value={payment.method} onChange={(event) => updatePayment(payment.id, { method: event.target.value })} className="input-dark py-2" aria-label={`payment-${payment.id}-method`} autoComplete="off">
                 <option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option><option>Cheque</option>
               </select>
-              <input id={`payment-${payment.id}-amount`} name={`payment-${payment.id}-amount`} type="number" min="0" value={payment.amount} onChange={(event) => updatePayment(payment.id, { amount: Number(event.target.value) })} className="input-dark py-2" placeholder="Monto" aria-label={`payment-${payment.id}-amount`} />
+              <input id={`payment-${payment.id}-amount`} name={`payment-${payment.id}-amount`} type="number" min="0" value={payment.amount} onChange={(event) => updatePayment(payment.id, { amount: Number(event.target.value) })} className="input-dark py-2" placeholder="Monto" aria-label={`payment-${payment.id}-amount`}  autoComplete="off" />
               <div className="flex gap-2">
-                <input id={`payment-${payment.id}-reference`} name={`payment-${payment.id}-reference`} value={payment.reference || ''} onChange={(event) => updatePayment(payment.id, { reference: event.target.value })} className="input-dark py-2" placeholder="Referencia" aria-label={`payment-${payment.id}-reference`} />
+                <input id={`payment-${payment.id}-reference`} name={`payment-${payment.id}-reference`} value={payment.reference || ''} onChange={(event) => updatePayment(payment.id, { reference: event.target.value })} className="input-dark py-2" placeholder="Referencia" aria-label={`payment-${payment.id}-reference`}  autoComplete="off" />
                 <button type="button" onClick={() => removePayment(payment.id)} className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-red-400/20 bg-red-500/10 text-red-200"><Trash2 size={15} /></button>
               </div>
             </div>
@@ -416,10 +416,10 @@ export function InvoiceForm({ initialInvoice, duplicateOf, onDone }) {
 
       <Modal open={customerModal} onClose={() => setCustomerModal(false)} title="Cliente rapido" size="md" footer={<div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setCustomerModal(false)}>Cancelar</Button><Button variant="success" onClick={saveQuickCustomer}>Guardar</Button></div>}>
         <div className="grid gap-3 md:grid-cols-2">
-          <Field label="Tipo"><select id="quick-customer-type" name="quick-customer-type" value={customerDraft.type} onChange={(event) => setCustomerDraft((state) => ({ ...state, type: event.target.value }))} className="input-dark"><option value="persona">Persona</option><option value="empresa">Empresa</option><option value="final">Final</option></select></Field>
-          <Field label="Nombre"><input id="quick-customer-name" name="quick-customer-name" value={customerDraft.name} onChange={(event) => setCustomerDraft((state) => ({ ...state, name: event.target.value }))} className="input-dark" autoFocus /></Field>
-          <Field label="RNC / Cedula"><input id="quick-customer-document" name="quick-customer-document" value={customerDraft.document} onChange={(event) => setCustomerDraft((state) => ({ ...state, document: event.target.value }))} className="input-dark" /></Field>
-          <Field label="Telefono"><input id="quick-customer-phone" name="quick-customer-phone" value={customerDraft.phone} onChange={(event) => setCustomerDraft((state) => ({ ...state, phone: event.target.value, whatsapp: event.target.value }))} className="input-dark" /></Field>
+          <Field label="Tipo"><select id="invoiceform-quick-customer-type" name="invoiceform-quick-customer-type" value={customerDraft.type} onChange={(event) => setCustomerDraft((state) => ({ ...state, type: event.target.value }))} className="input-dark" autoComplete="off"><option value="persona">Persona</option><option value="empresa">Empresa</option><option value="final">Final</option></select></Field>
+          <Field label="Nombre"><input id="invoiceform-quick-customer-name" name="invoiceform-quick-customer-name" value={customerDraft.name} onChange={(event) => setCustomerDraft((state) => ({ ...state, name: event.target.value }))} className="input-dark" autoFocus  autoComplete="off" /></Field>
+          <Field label="RNC / Cedula"><input id="invoiceform-quick-customer-document" name="invoiceform-quick-customer-document" value={customerDraft.document} onChange={(event) => setCustomerDraft((state) => ({ ...state, document: event.target.value }))} className="input-dark"  autoComplete="off" /></Field>
+          <Field label="Telefono"><input id="invoiceform-quick-customer-phone" name="invoiceform-quick-customer-phone" value={customerDraft.phone} onChange={(event) => setCustomerDraft((state) => ({ ...state, phone: event.target.value, whatsapp: event.target.value }))} className="input-dark"  autoComplete="tel" /></Field>
         </div>
       </Modal>
 
@@ -499,7 +499,7 @@ function ProductSearch({ products, onSelect }) {
           className="min-w-0 flex-1 bg-transparent text-base font-bold outline-none placeholder:text-white/35"
           placeholder="Buscar producto, SKU, marca, modelo, categoria, serial o codigo"
           aria-label="invoice-product-search"
-        />
+         autoComplete="off" />
         <Barcode className="text-white/35" size={20} />
       </div>
       {query.trim() && results.length > 0 && menuRect ? createPortal(

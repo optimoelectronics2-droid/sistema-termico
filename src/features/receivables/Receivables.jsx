@@ -222,7 +222,7 @@ export function Receivables() {
           <div className="flex items-center gap-3">
             <div className="module-search-bar">
               <Search size={16} style={{ color: 'var(--text-tertiary)' }} />
-              <input id="receivable-query" name="receivable-query" value={query} onChange={(e) => setQuery(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" placeholder="Buscar cliente, factura, estado" aria-label="receivable-query" />
+              <input id="receivable-query" name="receivable-query" value={query} onChange={(e) => setQuery(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" placeholder="Buscar cliente, factura, estado" aria-label="receivable-query"  autoComplete="off" />
             </div>
             <Button variant="ghost" icon={ReceiptText} onClick={() => setShowCollections(true)}>Reporte de cobros</Button>
             <Button variant="ghost" icon={FileSpreadsheet} onClick={exportAging}>Aging Excel</Button>
@@ -352,8 +352,8 @@ function Actions({ row, onPay, onEdit, onDelete, onRemind, onHistory, onStatus, 
 }
 
 function Icon({ icon: IconSvg, onClick, disabled = false }) { return <button disabled={disabled} onClick={onClick} className="rounded-md border p-2 transition disabled:cursor-not-allowed disabled:opacity-35" style={{ borderColor: 'var(--line)', background: 'rgba(255,255,255,.035)', color: 'rgba(255,255,255,.65)' }}><IconSvg size={15} /></button> }
-function Input({ label, value, onChange, type = 'text', step, min, name }) { return <label><span className="label-dark">{label}</span><input id={name} name={name} type={type} step={step} min={min} value={value} onChange={(e) => onChange(e.target.value)} className="input-dark" /></label> }
-function Select({ label, value, onChange, options, name }) { return <label><span className="label-dark">{label}</span><select id={name} name={name} value={value} onChange={(e) => onChange(e.target.value)} className="input-dark">{options.map((option) => <option key={option}>{option}</option>)}</select></label> }
+function Input({ label, value, onChange, type = 'text', step, min, name }) { return <label><span className="label-dark">{label}</span><input id={name} name={name} type={type} step={step} min={min} value={value} onChange={(e) => onChange(e.target.value)} className="input-dark"  autoComplete="off" /></label> }
+function Select({ label, value, onChange, options, name }) { return <label><span className="label-dark">{label}</span><select id={name} name={name} value={value} onChange={(e) => onChange(e.target.value)} className="input-dark" autoComplete="off">{options.map((option) => <option key={option}>{option}</option>)}</select></label> }
 function remind(item, customers, company) { const customer = customers.find((c) => c.id === item.customerId); window.open(`https://wa.me/${customer?.whatsapp || company.whatsapp}?text=${encodeURIComponent(`Estimado ${item.customerName}, le recordamos que tiene una factura No. ${item.invoiceNumber} por ${currency.format(item.balance)} con vencimiento el ${item.dueDate}. Para consultas: ${company.phone || company.whatsapp}. Gracias.`)}`) }
 function roundMoney(value) {
   const num = Number(value)
