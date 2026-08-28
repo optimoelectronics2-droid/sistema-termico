@@ -90,6 +90,7 @@ export function POS() {
   const sellRef = useRef(() => {})
   const clearRef = useRef(() => {})
   useEffect(() => { cartRef.current = cart }, [cart])
+  // Los refs mantienen los atajos globales apuntando a la acción más reciente sin reinstalar sus listeners.
   useEffect(() => { sellRef.current = sell }, [sell])
   useEffect(() => { clearRef.current = clearCurrentSale }, [clearCurrentSale])
   useEffect(() => {
@@ -154,6 +155,7 @@ export function POS() {
     setCart((items) => items.map((item) => (item === target ? { ...item, ...patch } : item)))
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Esta referencia se refresca deliberadamente en el efecto anterior.
   function sell() {
     try {
       const invoice = createInvoice({
@@ -183,6 +185,7 @@ export function POS() {
     }
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Esta referencia se refresca deliberadamente en el efecto anterior.
   function clearCurrentSale() {
     setCart([])
     setQuery('')
@@ -345,7 +348,7 @@ export function POS() {
           </select>
         </div>
         <div className="premium-scroll mt-4 max-h-[340px] space-y-2 overflow-y-auto">
-          {cart.map((item, index) => (
+          {cart.map((item) => (
             <div key={`${item.productId}-${item.serials?.join('-') || 'bulk'}`} className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>

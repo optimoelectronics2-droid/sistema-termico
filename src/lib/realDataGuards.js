@@ -1,6 +1,5 @@
 export const INVALID_STATUSES = new Set(['deleted', 'eliminado', 'eliminada', 'cancelled', 'canceled', 'cancelado', 'cancelada', 'voided', 'anulada', 'anulado'])
 export const INVALID_INVOICE_STATUSES = new Set(['deleted', 'eliminado', 'cancelled', 'canceled', 'cancelado', 'cancelada', 'voided', 'anulada', 'anulado'])
-const VALID_INVOICE_STATUSES = new Set(['paid', 'pagada', 'credit', 'credito', 'partial', 'parcial', 'open', 'issued', 'emitida'])
 
 export function normalizedStatus(record) {
   return String(record?.status || record?.estado || '').trim().toLowerCase()

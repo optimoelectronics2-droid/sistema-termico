@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Copy, Download, FileText, Pencil, Plus, Printer, Save, Send, Share2, Trash2, UserPlus } from 'lucide-react'
+import { Copy, Download, Pencil, Plus, Printer, Save, Send, Share2, Trash2, UserPlus } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Autocomplete } from '../../components/ui/Autocomplete'
 import { Modal } from '../../components/ui/Modal'

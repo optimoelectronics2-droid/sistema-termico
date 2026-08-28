@@ -218,16 +218,6 @@ function CustomerDetail({ customer, invoices, quotes, receivables }) {
   )
 }
 
-function SummaryCard({ label, value, accent }) {
-  const colors = { green: 'var(--color-income)', amber: 'var(--color-pending)', blue: 'var(--color-nav)', red: 'var(--color-alert)' }
-  const accentColor = accent ? colors[accent] || colors.blue : undefined
-  return (
-    <div className="rounded-lg p-3" style={{ border: '1px solid var(--line)', background: accentColor ? `color-mix(in srgb, ${accentColor} 8%, transparent)` : 'rgba(255,255,255,.035)' }}>
-      <p className="text-xs font-bold uppercase" style={{ color: accentColor || 'rgba(255,255,255,.4)' }}>{label}</p>
-      <p className="mt-1 font-display text-xl font-bold">{value}</p>
-    </div>
-  )
-}
 
 function validateCustomer(customer) {
   if (!customer.name?.trim()) throw new Error('El nombre / razon social es obligatorio.')

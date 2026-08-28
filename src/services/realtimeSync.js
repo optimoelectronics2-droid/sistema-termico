@@ -379,7 +379,7 @@ function handleRemoteCollection(name, snapshot) {
 
 // ─── Local write direction ──────────────────────────────────────────
 
-function scheduleLocalSync(state, _zustandPrevState) {
+function scheduleLocalSync(state) {
   // Deletions are NEVER inferred from array diffs.  They happen ONLY
   // when an explicit user action calls deleteRemoteDoc().
   // This function only syncs creations and updates to Firestore.
@@ -470,8 +470,6 @@ async function writeDiff(uid, prev, next) {
     const nextItems = Array.isArray(next[name]) ? next[name] : []
 
     const prevMap = new Map(prevItems.filter((i) => i?.id).map((i) => [i.id, i]))
-    const nextMap = new Map(nextItems.filter((i) => i?.id).map((i) => [i.id, i]))
-
     // Added or updated items
     for (const item of nextItems) {
       if (!item?.id) continue
@@ -570,21 +568,6 @@ async function cleanupLegacySoftDeletes(uid) {
   if (totalPurged > 0) {
     console.log(`[realtimeSync] Migracion: ${totalPurged} documentos legacy soft-delete purgados fisicamente.`)
   }
-}
-
-// ─── Sync debug log ──────────────────────────────────────────────────
-// Exposes a live event log at window.__SYNC_LOG__ for diagnosing
-// deletion-detection issues.
-// Inspect from browser console: copy(JSON.stringify(window.__SYNC_LOG__, null, 2))
-const SYNC_LOG_MAX = 500
-if (typeof window !== 'undefined') {
-  if (!window.__SYNC_LOG__) window.__SYNC_LOG__ = []
-}
-function logSync(eventType, detail = {}) {
-  if (typeof window === 'undefined' || !window.__SYNC_LOG__) return
-  const entry = { t: new Date().toISOString(), type: eventType, ...detail }
-  window.__SYNC_LOG__.push(entry)
-  if (window.__SYNC_LOG__.length > SYNC_LOG_MAX) window.__SYNC_LOG__.shift()
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────

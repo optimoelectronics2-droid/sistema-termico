@@ -64,7 +64,6 @@ export function Reports() {
   const inventoryReports = useERPStore((state) => state.inventoryReports)
   const ensureReportStats = useERPStore((state) => state.ensureReportStats)
   const creditNotes = useERPStore((state) => state.creditNotes || [])
-  const [mode, setMode] = useState('all')
   const [profitPeriod, setProfitPeriod] = useState('filtered')
   const [periodTable, setPeriodTable] = useState('monthly')
   const [filters, setFilters] = useState(() => defaultReportFilters())
@@ -89,7 +88,6 @@ export function Reports() {
     return fiscalSheetGroups.filter((group) => group.mode === selectedSheetMode || group.id === selectedSheetMode)
   }, [showDetail.sheets, fiscalSheetGroups, selectedSheetMode])
   const buckets = useMemo(() => buildBuckets(filteredInvoices), [filteredInvoices])
-  const filtered = useMemo(() => (mode === 'all' ? filteredInvoices : filteredInvoices.filter((invoice) => invoice.mode === mode)), [filteredInvoices, mode])
   const groupedRows = useMemo(() => groupReportRows(filteredInvoices, filters.groupBy), [filteredInvoices, filters.groupBy])
   const profitReport = useMemo(() => buildProfitReport({ filteredInvoices, filteredItems, filteredHistory, report, profitPeriod }), [filteredInvoices, filteredItems, filteredHistory, report, profitPeriod])
   const monthlySeries = useMemo(() => [...(report.periods?.monthly || [])].slice(0, 12).reverse(), [report])
@@ -238,11 +236,6 @@ export function Reports() {
     const group = buildReportGroups(report.fiscalGroups || [], filteredInvoices, filteredItems).find((item) => item.mode === modeValue)
     if (group) await downloadFiscalReportPdf({ company, group: withPdfMeta(group) })
   }
-  async function downloadAllPdfs() {
-    const { downloadFiscalReportPdf } = await import('../../services/fiscalReportPdf')
-    for (const group of buildReportGroups(report.fiscalGroups || [], filteredInvoices, filteredItems)) await downloadFiscalReportPdf({ company, group: withPdfMeta(group) })
-  }
-
   function export607() {
     const rows = filteredInvoices.filter((inv) => [invoiceModes.TAXED, invoiceModes.MIXED].includes(inv.mode)).map((inv) => `${inv.customerRnc || ''}|${inv.ncfType}|${inv.ncf || inv.number}|${String(inv.issuedAt || inv.date || '').slice(0, 10)}|${inv.totals?.subtotal || 0}|${inv.totals?.itbis || 0}`)
     const blob = new Blob([rows.join('\n')], { type: 'text/plain;charset=utf-8' })
@@ -651,7 +644,7 @@ export function Reports() {
   )
 }
 
-function DetailSection({ id, label, open, onToggle, children }) {
+function DetailSection({ id, label, open, children }) {
   const meta = detailMeta(label)
   if (!open) return null
   return (
@@ -720,7 +713,7 @@ function KpiBlock({ label, value, raw, accent }) {
   )
 }
 
-function AdvancedFilters({ filters, setFilter, setQuickRange }) {
+function AdvancedFilters({ filters, setFilter }) {
   const [open, setOpen] = useState(false)
   return (
     <div className="overflow-hidden rounded-xl border border-[#243244]">

@@ -12,7 +12,7 @@ function decodeInvoiceData() {
         dataStr = decodeURIComponent(atob(b64))
       } catch {
         dataStr = atob(hash)
-        try { dataStr = decodeURIComponent(dataStr) } catch {}
+        try { dataStr = decodeURIComponent(dataStr) } catch { /* La carga útil ya estaba decodificada. */ }
       }
     } else if (search.includes('data=')) {
       const params = new URLSearchParams(search)
@@ -42,10 +42,12 @@ export function VerifyInvoice() {
     const data = decodeInvoiceData()
     if (!data) return
     let fullInvoices = []
-    try { fullInvoices = JSON.parse(localStorage.getItem('trifusion-erp-state-v2') || '{}')?.state?.invoices || [] } catch {}
+    try { fullInvoices = JSON.parse(localStorage.getItem('trifusion-erp-state-v2') || '{}')?.state?.invoices || [] } catch { /* La verificación continúa con los datos del QR. */ }
     if (data.id && (!data.items || data.items.length === 0)) {
       const full = fullInvoices.find((inv) => inv.id === data.id)
       if (full) {
+        // Este estado deriva exclusivamente de la carga del QR al montar la vista.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setInvoice({
           number: data.n || full.number,
           ncf: full.ncf || '',

@@ -14,7 +14,6 @@ function annualKey(d) { try { return new Date(d).toISOString().slice(0, 4) } cat
 function parseDate(v) { var d = v ? new Date(v) : new Date(); return isNaN(d.getTime()) ? new Date() : d }
 function inRange(v, start, end) { var t = parseDate(v).getTime(); return t >= parseDate(start).getTime() && t <= parseDate(end).getTime() }
 function startOfWeek(v) { var d = parseDate(v); var day = d.getDay() || 7; d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - day + 1); return d }
-function addDays(v, n) { var d = parseDate(v); d.setDate(d.getDate() + n); return d }
 
 var VALID_INVOICE_STATUSES = new Set(['paid', 'pagada', 'credit', 'credito', 'partial', 'parcial', 'open', 'issued', 'emitida', 'pendiente', 'pending', 'overdue', 'vencida', 'delivered', 'entregada'])
 
@@ -230,10 +229,8 @@ export function rebuildReports(data) {
 export function auditIntegrity(data) {
   var companyId = data.companyId || ''
   var issues = []
-  var validInvoiceIds = new Set((data.invoices || []).filter(function(i) { return !isVoidedInvoice(i) }).map(function(i) { return i.id }))
   var allInvoiceIds = new Set((data.invoices || []).map(function(i) { return i.id }))
   var validProductIds = new Set((data.products || []).filter(function(p) { return isActiveProduct(p, companyId) }).map(function(p) { return p.id }))
-  var allPaymentIds = new Set((data.payments || []).map(function(p) { return p.id }))
 
   ;(data.receivables || []).forEach(function(r) {
     if (!r.invoiceId) { issues.push({ type: 'huérfano', entity: 'CxC', id: r.id, detail: 'No tiene invoiceId' }); return }

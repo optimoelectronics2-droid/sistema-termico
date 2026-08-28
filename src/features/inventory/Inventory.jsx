@@ -11,10 +11,10 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useERPStore } from '../../store/useERPStore'
 import { downloadCsv } from '../../lib/csvExport'
 import { currency, formatDate } from '../../lib/formatters'
-import { buildCode128Bars, buildEAN13Bars, buildUPABars, barcodeToSvg, sanitizeCode128Value, getCode128Layout as getBarcodeLayout } from '../../lib/barcodeEngine'
-import { generateZPL, downloadZplFile, sendToUsbPrinter, generateESCPOS, downloadEscposFile, sendEscposToUsb, renderLabelToCanvas, downloadLabelPng, LABEL_DIMENSIONS, PRINT_MODES } from '../../services/barcodeLabelService'
-import { LABEL_SIZES as NEW_LABEL_SIZES, getLabelSize as newGetLabelSize, validateBarcodeReadability, createEmptyDesign, createLabelElement, generateBarcodeBars } from '../../lib/labelEngine'
-import { renderDesignToPdf, renderDesignToZpl, renderDesignToEpl, renderDesignToTspl, renderDesignToCpcl, renderDesignToEscpos, renderDesign, downloadOutput } from '../../lib/labelOutput'
+import { buildCode128Bars, buildEAN13Bars, buildUPABars, sanitizeCode128Value, getCode128Layout as getBarcodeLayout } from '../../lib/barcodeEngine'
+import { generateZPL, downloadZplFile, sendToUsbPrinter, generateESCPOS, downloadEscposFile, sendEscposToUsb, renderLabelToCanvas, downloadLabelPng, LABEL_DIMENSIONS } from '../../services/barcodeLabelService'
+import { LABEL_SIZES as NEW_LABEL_SIZES, validateBarcodeReadability, createEmptyDesign } from '../../lib/labelEngine'
+import { renderDesignToZpl, renderDesignToEpl, renderDesignToTspl, renderDesignToCpcl, downloadOutput } from '../../lib/labelOutput'
 import LabelDesigner from '../../components/label/LabelDesigner'
 import LabelPrinterProfileDialog from '../../components/label/LabelPrinterProfileDialog'
 import LabelMassPrintDialog from '../../components/label/LabelMassPrintDialog'
@@ -500,7 +500,7 @@ function BarcodeLabelPrinter({ product }) {
   const [showSku, setShowSku] = useState(true)
   const [printMode, setPrintMode] = useState(company?.labelPrintMode || 'browser')
   const [zplStatus, setZplStatus] = useState('')
-  const [barcodeType, setBarcodeType] = useState('code128')
+  const [barcodeType] = useState('code128')
   const [showDesigner, setShowDesigner] = useState(false)
   const [showProfiles, setShowProfiles] = useState(false)
   const [showMassPrint, setShowMassPrint] = useState(false)
@@ -876,7 +876,7 @@ function InventoryRotationPanel({ insights }) {
   )
 }
 
-function InventoryMetric({ title, value, detail, tone }) {
+function InventoryMetric({ title, value, detail }) {
   return <div className="summary-chip"><span className="summary-chip-label">{title}</span><span className="summary-chip-value">{value}</span><p className="mt-1 text-xs" style={{ color: 'rgba(255,255,255,.45)' }}>{detail}</p></div>
 }
 

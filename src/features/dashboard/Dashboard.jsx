@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertTriangle, ArrowUpRight, Banknote, BarChart3, Boxes, CircleDollarSign, FileMinus2, FileText, HandCoins, PackageX, Percent, ReceiptText, Search, Users, Wallet, Zap, TrendingUp, Clock, ShieldAlert, Download } from 'lucide-react'
+import { AlertTriangle, Banknote, BarChart3, Boxes, CircleDollarSign, FileMinus2, HandCoins, PackageX, Percent, ReceiptText, Users, Wallet, Zap, TrendingUp, ShieldAlert, Download } from 'lucide-react'
 import { MetricCard } from '../../components/ui/MetricCard'
 import { buildExecutiveDashboardModel } from '../../lib/executiveDashboardEngine'
 import { currency } from '../../lib/formatters'
@@ -193,7 +193,7 @@ function AnalysisLevel({ model, customers, navigate }) {
   )
 }
 
-function DetailLevel({ model, customers, navigate }) {
+function DetailLevel({ model, navigate }) {
   const totals = model.totals || {}
   return (
     <div className="section-card space-y-5">

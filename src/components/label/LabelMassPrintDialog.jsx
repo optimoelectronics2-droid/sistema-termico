@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
-import { validateBarcodeReadability, generateBarcodeBars, getLabelSize } from '../../lib/labelEngine.js'
-import { renderDesignToPdf, renderDesignToZpl, renderDesignToEscpos, downloadOutput, createLabelPdfAsync } from '../../lib/labelOutput.js'
+import { validateBarcodeReadability, getLabelSize } from '../../lib/labelEngine.js'
+import { renderDesignToPdf, renderDesignToZpl, downloadOutput } from '../../lib/labelOutput.js'
 
 export default function LabelMassPrintDialog({ products, design, printerProfile, onClose }) {
   const [selectedProducts, setSelectedProducts] = useState(() => products.map(p => ({ ...p, _selected: true, _qty: p.stock || 1 })))

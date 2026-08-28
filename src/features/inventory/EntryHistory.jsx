@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BarChart3, Barcode, Boxes, Calendar, CalendarCheck, CalendarDays, CalendarRange, ChevronDown, ChevronUp, ClipboardList, Eye, Package, Pencil, Search, Trash2, Wallet } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
-import { todayIso } from '../../lib/dateTime'
 import { currency, formatDate } from '../../lib/formatters'
 import { compareValues, normalizeText, QUICK_DATE_CHIPS, quickChipRange } from '../../lib/period'
 import { ENTRY_TYPES, TypeBadge } from './entryTypes'

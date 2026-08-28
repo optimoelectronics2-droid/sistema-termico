@@ -29,6 +29,8 @@ export function usePrinterWatcher({ autoConnectAgent = true, agentUrl } = {}) {
       try {
         stopAuto = printAgentClient.ensureAgentConnection(agentUrl)
       } catch (e) {
+        // La conexión puede fallar de inmediato si el agente local no está instalado.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (active) setError(String(e?.message || e))
       }
     }

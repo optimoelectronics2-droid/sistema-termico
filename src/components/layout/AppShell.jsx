@@ -3,7 +3,6 @@ import { signOut } from 'firebase/auth'
 import {
   BarChart3,
   BookOpenCheck,
-  Building2,
   Boxes,
   Calculator,
   CircleDollarSign,
@@ -15,7 +14,6 @@ import {
   Landmark,
   Menu,
   PackagePlus,
-  Plus,
   ReceiptText,
   Search,
   Settings,

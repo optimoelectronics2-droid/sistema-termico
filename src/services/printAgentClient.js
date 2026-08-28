@@ -158,7 +158,7 @@ export function connect(url = DEFAULT_URL) {
       })
 
       ws.addEventListener('message', (event) => {
-        let msg = null
+        let msg
         try { msg = JSON.parse(event.data) } catch { return }
         if (!msg || typeof msg !== 'object') return
 
@@ -318,8 +318,8 @@ export async function listNormalPrintersViaAgent() {
 export async function printViaAgent({ bytes, protocol = 'escpos', target = {}, kind = 'thermal', extra = {} } = {}) {
   if (!bytes) throw new Error('No hay datos para imprimir')
 
-  let base64 = ''
-  let byteLength = 0
+  let base64
+  let byteLength
 
   if (bytes instanceof Uint8Array) {
     byteLength = bytes.length
@@ -367,7 +367,7 @@ export async function printViaAgent({ bytes, protocol = 'escpos', target = {}, k
 export async function printPdfViaAgent({ pdf, printerName, copies = 1, paperSize = 'Letter', orientation = 'portrait' } = {}) {
   if (!printerName) throw new Error('Se requiere el nombre de la impresora')
 
-  let pdfBase64 = ''
+  let pdfBase64
   if (typeof pdf === 'string') {
     // Asumir ya es base64 o data URI
     if (pdf.startsWith('data:')) {

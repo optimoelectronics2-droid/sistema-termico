@@ -4,7 +4,7 @@
    All use mm-based coordinates, calibration-aware
    ================================================================= */
 
-import { buildCode128Bars, buildEAN13Bars, buildUPABars, getBarcodeLayout, validateAndSanitizeForPrint } from './barcodeEngine.js'
+import { buildCode128Bars, buildEAN13Bars, buildUPABars, getBarcodeLayout } from './barcodeEngine.js'
 import { mmToPx, applyCalibration, getLabelSize } from './labelEngine.js'
 
 function getBars(type, value) {
@@ -181,7 +181,6 @@ export async function renderDesignToA4Grid(design, calibration, quantity = 1, ma
   const pageW = 210, pageH = 297
   const cols = Math.max(1, Math.floor((pageW - margin * 2 + gap) / (labelW + gap)))
   const rows = Math.max(1, Math.floor((pageH - margin * 2 + gap) / (labelH + gap)))
-  const perPage = cols * rows
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4', hotfixes: ['px_scaling'] })
   let rendered = 0
@@ -291,7 +290,7 @@ export function renderDesignToCpcl(design, calibration) {
 
 export function renderDesignToEscpos(design, calibration) {
   const cal = calibration || { offsetX: 0, offsetY: 0, scaleX: 1, scaleY: 1 }
-  const size = getLabelSize(design.labelSizeId); const dpi = cal.dpi || 203
+  const dpi = cal.dpi || 203
   const chunks = []; const encoder = new TextEncoder()
   const cmd = (...args) => chunks.push(new Uint8Array(args))
   const raw = (arr) => chunks.push(arr)

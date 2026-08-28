@@ -38,6 +38,8 @@ export function EntryForm({ editingEntry, nextNumber, onSubmit, onCancelEdit, re
   const total = form.items.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.cost || 0), 0)
 
   useEffect(() => {
+    // El formulario debe reiniciarse al abrir una entrada distinta o al pedir un restablecimiento externo.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setForm(buildForm(editingEntry))
   }, [editingEntry, resetSignal])
 

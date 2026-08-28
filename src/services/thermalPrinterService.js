@@ -15,7 +15,7 @@ import {
   downloadThermalFile,
   THERMAL_PROTOCOLS,
 } from '../lib/invoiceThermal'
-import { buildReceiptPdf, buildTestReceiptPdf, downloadReceiptPdf } from '../lib/receiptPdf'
+import { buildReceiptPdf } from '../lib/receiptPdf'
 import * as printAgentClient from './printAgentClient'
 
 const PROFILE_KEY = 'erp.thermalPrinterProfile'
@@ -311,6 +311,7 @@ async function openAndClaim(device) {
     if (name === 'SecurityError' || name === 'NetworkError' || /driver|SecurityError|NetworkError/i.test(String(error?.message || ''))) {
       throw new Error(
         'Esta impresora tiene el driver de Windows/macOS activo. Use el agente local de impresión (recomendado) o instale un driver WinUSB con Zadig para forzar acceso directo.',
+        { cause: error },
       )
     }
     throw error
@@ -361,6 +362,7 @@ async function openAndClaim(device) {
           }
           throw new Error(
             'Esta impresora tiene el driver de Windows/macOS activo. Use el agente local de impresión (recomendado) o instale un driver WinUSB con Zadig para forzar acceso directo.',
+            { cause: error },
           )
         }
         // Probar siguiente interfaz

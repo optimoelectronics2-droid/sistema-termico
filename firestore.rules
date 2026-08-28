@@ -54,6 +54,11 @@ service cloud.firestore {
       return isCompanyMember(companyId) && companyRole(companyId) in roles;
     }
 
+    function isCompanyOwner(companyId) {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/companies/$(companyId)).data.ownerId == request.auth.uid;
+    }
+
     function isTenantPayload(companyId) {
       return !('companyId' in request.resource.data) || request.resource.data.companyId == companyId;
     }
@@ -74,12 +79,15 @@ service cloud.firestore {
 
     match /companies/{companyId} {
       allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
-      allow read: if isCompanyMember(companyId) || resource.data.ownerId == request.auth.uid;
-      allow update, delete: if companyRoleIn(companyId, ['owner', 'admin', 'Admin']) || resource.data.ownerId == request.auth.uid;
+      allow read: if isCompanyMember(companyId) || isCompanyOwner(companyId);
+      allow update, delete: if companyRoleIn(companyId, ['owner', 'admin', 'Admin']) || isCompanyOwner(companyId);
 
       match /members/{userId} {
-        allow read: if isCompanyMember(companyId) || userId == request.auth.uid;
-        allow create: if isAuthenticated() && (request.auth.uid == userId || companyRoleIn(companyId, ['owner', 'admin', 'Admin']));
+        allow read: if isCompanyMember(companyId) || isCompanyOwner(companyId);
+        allow create: if (request.auth.uid == userId
+          && isCompanyOwner(companyId)
+          && request.resource.data.role == 'owner')
+          || companyRoleIn(companyId, ['owner', 'admin', 'Admin']);
         allow update, delete: if companyRoleIn(companyId, ['owner', 'admin', 'Admin']);
       }
 

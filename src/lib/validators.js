@@ -87,7 +87,7 @@ export function assertValidInvoiceDates(issueDate, dueDate) {
   }
 }
 
-export function assertCustomerCreditLimit(customerId, amount, customers, receivables) {
+export function assertCustomerCreditLimit(customerId, amount, customers) {
   const customer = (customers || []).find((c) => c.id === customerId)
   if (!customer) return
   const creditLimit = moneyValue(customer.creditLimit || 0)

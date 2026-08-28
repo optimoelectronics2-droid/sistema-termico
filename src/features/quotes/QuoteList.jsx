@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Copy, ExternalLink, FileText, MessageCircle, Pencil, Plus, RefreshCcw, Search, Trash2, Printer, Download } from 'lucide-react'
+import { Copy, FileText, MessageCircle, Pencil, Plus, RefreshCcw, Search, Trash2, Printer, Download } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../../components/ui/Button'
 import { DataTable } from '../../components/ui/DataTable'

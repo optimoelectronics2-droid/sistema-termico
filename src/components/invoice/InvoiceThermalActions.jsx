@@ -446,7 +446,7 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
         }
       } else if (result.via === 'dialog') {
         toast.info(result.error || 'Se abrirá el diálogo del sistema: elija Trifusion POS-80 y confirme.')
-        try { await printThermalViaBrowser({ invoice, company, customer, qrText }) } catch {}
+        try { await printThermalViaBrowser({ invoice, company, customer, qrText }) } catch { /* El diálogo puede cancelarse sin interrumpir el flujo. */ }
       } else if (result.via === 'download') {
         toast.info(result.error || 'Se descargo el archivo termico.')
       } else if (result.via === 'agent' && result.error) {

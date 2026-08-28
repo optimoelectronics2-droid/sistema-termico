@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
-import { createEmptyDesign, createLabelElement, validateDesign, generateBarcodeBars, getLabelSize, LABEL_SIZES, ELEMENT_TYPES } from '../../lib/labelEngine.js'
-import { renderDesignToPdf, createLabelPdfAsync, renderDesignToA4Grid } from '../../lib/labelOutput.js'
+import { createEmptyDesign, createLabelElement, validateDesign, generateBarcodeBars, getLabelSize, LABEL_SIZES } from '../../lib/labelEngine.js'
+import { createLabelPdfAsync, renderDesignToA4Grid } from '../../lib/labelOutput.js'
 
 export default function LabelDesigner({ initialDesign, onSave, onClose, calibration, dpi = 203 }) {
   const [design, setDesign] = useState(() => initialDesign || createEmptyDesign('3x2'))
@@ -108,7 +108,7 @@ export default function LabelDesigner({ initialDesign, onSave, onClose, calibrat
     )
   }
 
-  async function handleExportPdf(type) {
+  async function handleExportPdf() {
     if (!exportModal) return
     const quantity = exportModal.quantity || 1
     try {

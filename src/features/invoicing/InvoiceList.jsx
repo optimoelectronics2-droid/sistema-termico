@@ -456,7 +456,7 @@ export function InvoiceList() {
   )
 }
 
-function ActionDropdown({ invoice, customers, company, onView, onDownload, onEdit, onDuplicate, onPrint, onWhatsApp, onEmail, onProducts, onHistory, onCreditNote, onDelete, onVoid }) {
+function ActionDropdown({ invoice, onView, onDownload, onEdit, onDuplicate, onPrint, onWhatsApp, onEmail, onProducts, onHistory, onCreditNote, onDelete, onVoid }) {
   const [open, setOpen] = useState(false)
   const btnRef = useRef(null)
   const menuRef = useRef(null)

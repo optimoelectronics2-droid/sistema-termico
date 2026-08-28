@@ -142,7 +142,7 @@ export function validateDesign(design) {
    Barcode readability validation
    ----------------------------------------------------------------- */
 export function validateBarcodeReadability(type, value, options = {}) {
-  const { minModuleWidth = 0.2, maxModules = 200 } = options
+  const { maxModules = 200 } = options
   if (!value) return { valid: false, reason: 'No value' }
   if (type === 'qr') return { valid: true, barCount: 1 }
   const fn = type === 'ean13' ? buildEAN13Bars : type === 'upc' ? buildUPABars : buildCode128Bars

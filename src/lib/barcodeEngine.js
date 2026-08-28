@@ -177,8 +177,7 @@ export { sanitizeCode128 as sanitizeCode128Value, getBarcodeLayout as getCode128
 /* -----------------------------------------------------------------
    Readability validation — checks minimum bar width, contrast, etc.
    ----------------------------------------------------------------- */
-export function validateBarcodeReadability(type, value, options = {}) {
-  const minModuleWidth = options.moduleWidth || 0.2 // mm
+export function validateBarcodeReadability(type, value) {
   const result = barcodeToBars(type, value)
   if (!result || !result.bars || result.bars.length === 0) return { valid: false, reason: 'No bars generated' }
   const minBar = Math.min(...result.bars.map(b => b.width))
@@ -215,5 +214,3 @@ export function validateAndSanitizeForPrint(type, value, availableWidthMm, optio
   }
   return { valid: true, sanitizedValue: result.text, requiredWidthMm: Math.ceil(requiredWidth * 10) / 10, warningMessage: null }
 }
-
-

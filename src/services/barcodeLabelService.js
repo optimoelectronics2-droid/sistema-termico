@@ -1,4 +1,4 @@
-import { buildCode128Bars, getBarcodeLayout, sanitizeCode128Value, validateAndSanitizeForPrint } from '../lib/barcodeEngine'
+import { buildCode128Bars, getBarcodeLayout, sanitizeCode128Value } from '../lib/barcodeEngine'
 
 const SIZES = {
   '2x1': { widthIn: 2, heightIn: 1, cols: 4, name: '2" x 1"' },
@@ -196,10 +196,9 @@ export function detectProtocolFromVendor(vendorId) {
 /**
  * Request a USB printer device and send data
  * @param {string|Blob} data - ZPL string or ESC/POS Blob
- * @param {'zpl'|'escpos'} protocol - Protocol to use
  * @returns {Promise<{deviceName: string, vendorId: number, protocol: string}>}
  */
-export async function sendToUsbPrinter(data, protocol = 'zpl') {
+export async function sendToUsbPrinter(data) {
   if (!navigator.usb) throw new Error('WebUSB no soportado en este navegador. Use Chrome/Edge.')
 
   // Intentar con filtros de todas las marcas conocidas; si falla, usar vacío

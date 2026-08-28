@@ -1,9 +1,14 @@
+import { useEffect } from 'react'
+
 let lockCount = 0
 let originalOverflow = ''
 
 export function useLockBodyScroll(active) {
-  // This is a hook-like utility, but we implement as plain functions for useEffect
-  // Use directly in useEffect: if (active) lock, else unlock via cleanup
+  useEffect(() => {
+    if (!active) return undefined
+    lockBodyScroll()
+    return unlockBodyScroll
+  }, [active])
 }
 
 export function lockBodyScroll() {

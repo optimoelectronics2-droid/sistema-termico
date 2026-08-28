@@ -150,33 +150,6 @@ export function DashboardKpiPage() {
     doc.save(`${report.fileName}.pdf`)
   }
 
-  function openInvoicePrint(invoiceId) {
-    if (!invoiceId) return
-    window.open(`/facturacion/${invoiceId}/imprimir`, '_blank', 'noopener,noreferrer')
-  }
-
-  function navigateToInvoice(invoiceId) {
-    if (!invoiceId) return
-    navigate(`/facturacion/${invoiceId}`)
-  }
-
-  function navigateToEditInvoice(invoiceId) {
-    if (!invoiceId) return
-    navigate(`/facturacion/${invoiceId}/editar`)
-  }
-
-  function navigateToCxc() {
-    navigate('/cxc')
-  }
-
-  function navigateToInventory() {
-    navigate('/inventario')
-  }
-
-  function navigateToCrm() {
-    navigate('/clientes')
-  }
-
   return (
     <div className="space-y-5">
       <section className="module-surface p-5 sm:p-6">

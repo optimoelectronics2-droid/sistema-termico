@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- Este módulo comparte las constantes del formulario y su insignia React. */
 export const ENTRY_TYPES = ['Nueva mercancia', 'Devolucion proveedor', 'Ajuste positivo', 'Transferencia']
 
 export const TYPE_BADGE = {

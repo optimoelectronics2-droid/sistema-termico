@@ -450,7 +450,7 @@ export const useERPStore = create(
         deleteRemoteDoc('products', productId).catch(() => {})
       },
 
-      restoreProduct(productId) {
+      restoreProduct() {
         throw new Error('La papelera de reciclaje fue desactivada. Los productos eliminados no se pueden recuperar.')
       },
 
@@ -2385,7 +2385,7 @@ export const useERPStore = create(
       }),
       migrate: (persistedState) => {
         const backupKey = 'trifusion-erp-state-migration-backup-' + Date.now()
-        try { localStorage.setItem(backupKey, JSON.stringify(persistedState)) } catch {}
+        try { localStorage.setItem(backupKey, JSON.stringify(persistedState)) } catch { /* La migración continúa aunque no se pueda crear una copia local. */ }
         const migrated = migrateTenantState(persistedState)
         // Post-migration validation: ensure critical arrays survived
         const criticalArrays = ['invoices', 'quotes', 'customers', 'products', 'receivables', 'payments', 'financialMovements', 'expenses', 'conduces', 'creditNotes', 'suppliers', 'branches', 'stores', 'users', 'productEntries', 'inventoryMovements', 'serviceOrders', 'taxSequences', 'auditLogs']

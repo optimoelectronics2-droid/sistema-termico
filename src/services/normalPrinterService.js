@@ -79,16 +79,6 @@ function findPreviewForPdf() {
   return document.getElementById('invoice-preview') || document.querySelector('[id^="invoice-preview-"]')
 }
 
-async function buildPdfBlobForAgent() {
-  // Intentamos capturar el DOM renderizado (invoice-preview). Si no existe, igual intentamos
-  // con el nuevo helper que ya soporta useId.
-  const previewEl = findPreviewForPdf()
-  const pdf = await buildCleanInvoicePdf(previewEl)
-  if (!pdf) throw new Error('No se pudo generar el PDF de la factura. Asegúrese de que la vista previa esté visible.')
-  const blob = pdf.output('blob')
-  return { pdf, blob }
-}
-
 function canSilentPrint() {
   return printAgentClient.isAgentConnected()
 }
@@ -131,9 +121,6 @@ async function openBrowserPrintDialog(sourceElement) {
  * - Sin agente: fallback a window.print() con aviso honesto (no se puede evitar el diálogo por seguridad del navegador).
  *
  * @param {object} opts
- * @param {object} opts.invoice
- * @param {object} opts.company
- * @param {object} opts.customer
  * @param {string} opts.printerName - nombre exacto del SO (requerido para silencioso)
  * @param {string} opts.paperSize - Letter|A4
  * @param {string} opts.orientation - portrait|landscape
@@ -141,9 +128,6 @@ async function openBrowserPrintDialog(sourceElement) {
  * @param {HTMLElement} opts.sourceElement - opcional, elemento a capturar si hay varios
  */
 export async function printInvoiceNormal({
-  invoice,
-  company,
-  customer,
   printerName,
   paperSize,
   orientation,
