@@ -11,7 +11,8 @@ export const DataTable = memo(function DataTable({
   searchable = true,
   searchPlaceholder = 'Buscar en tabla...',
 }) {
-  const tableId = useId()
+  const rawId = useId()
+  const tableId = rawId.replace(/:/g, '-')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(initialPageSize)
   const [query, setQuery] = useState('')
@@ -25,7 +26,11 @@ export const DataTable = memo(function DataTable({
 
   useEffect(() => {
     setPage(1)
-  }, [deferredQuery, pageSize, sort, data])
+  }, [deferredQuery, pageSize, sort.key, sort.direction])
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages)
+  }, [totalPages, page])
 
   const normalizedColumns = useMemo(() => columns.map((col, idx) => {
     if (col.id) return col

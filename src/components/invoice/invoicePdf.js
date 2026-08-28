@@ -1,5 +1,24 @@
-export async function buildCleanInvoicePdf() {
-  const source = document.getElementById('invoice-preview')
+function findInvoicePreviewElement() {
+  // Prefer the new data-attribute (useId-based), then legacy fixed id, then prefix fallback
+  const byData = document.querySelectorAll('[data-invoice-preview]')
+  for (let i = byData.length - 1; i >= 0; i -= 1) {
+    const el = byData[i]
+    if (el && el.getBoundingClientRect().width > 0) return el
+  }
+  if (byData.length) return byData[byData.length - 1]
+  const legacy = document.getElementById('invoice-preview')
+  if (legacy) return legacy
+  const byPrefix = document.querySelectorAll('[id^="invoice-preview-"]')
+  for (let i = byPrefix.length - 1; i >= 0; i -= 1) {
+    const el = byPrefix[i]
+    if (el && el.getBoundingClientRect().width > 0) return el
+  }
+  if (byPrefix.length) return byPrefix[byPrefix.length - 1]
+  return null
+}
+
+export async function buildCleanInvoicePdf(sourceElement = null) {
+  const source = sourceElement || findInvoicePreviewElement()
   if (!source) return null
   const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')])
   const wrapper = document.createElement('div')
@@ -13,12 +32,23 @@ export async function buildCleanInvoicePdf() {
   wrapper.appendChild(clone)
   document.body.appendChild(wrapper)
 
+  // Adaptive scale to avoid OOM on mobile/low-end (previous 2x → ~14MB)
+  const baseScale = Math.min(1.6, window.devicePixelRatio || 1.5)
+  const rect = source.getBoundingClientRect()
+  const width = Math.ceil(rect.width)
+  const height = Math.ceil(rect.height)
+  let scale = width > 900 ? 1.3 : width > 700 ? 1.5 : baseScale
+  if (height > 3000) scale = Math.min(scale, 1.15)
+  if (height > 5000) scale = 1.0
   try {
     const canvas = await html2canvas(clone, {
       backgroundColor: '#ffffff',
-      scale: 2,
+      scale,
       useCORS: true,
       logging: false,
+      allowTaint: false,
+      imageTimeout: 8000,
+      removeContainer: true,
     })
     const image = canvas.toDataURL('image/jpeg', 0.96)
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter', compress: true })
@@ -148,8 +178,8 @@ function displayInvoiceNumber(invoice) {
   return number
 }
 
-export async function printCleanInvoicePdf() {
-  const pdf = await buildCleanInvoicePdf()
+export async function printCleanInvoicePdf(_invoice, _company, _customer, sourceElement = null) {
+  const pdf = await buildCleanInvoicePdf(sourceElement)
   if (!pdf) return
   pdf.autoPrint()
   const url = URL.createObjectURL(pdf.output('blob'))
@@ -171,8 +201,8 @@ export async function printCleanInvoicePdf() {
   }
 }
 
-export async function downloadCleanInvoicePdf(invoice) {
-  const pdf = await buildCleanInvoicePdf()
+export async function downloadCleanInvoicePdf(invoice, _company, _customer, sourceElement = null) {
+  const pdf = await buildCleanInvoicePdf(sourceElement)
   if (!pdf) return
   pdf.save(`factura-${displayInvoiceNumber(invoice)}.pdf`)
 }

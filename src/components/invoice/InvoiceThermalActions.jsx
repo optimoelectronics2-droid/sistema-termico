@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Bluetooth, Cable, Check, Cpu, Download, Network, PenLine, Plus, Printer, RefreshCw, RotateCcw, Ruler, Save, ScanSearch, Settings2, TestTube2, Trash2, Usb, Wrench, X } from 'lucide-react'
+import { useEffect, useId, useMemo, useState } from 'react'
+import { AlertTriangle, Bluetooth, Cable, Check, Cpu, Download, FileText, Monitor, Network, PenLine, Plus, Printer, RefreshCw, RotateCcw, Ruler, Save, ScanSearch, Settings2, TestTube2, Trash2, Usb, Wrench, X } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { useToast } from '../../hooks/useToast'
 import {
@@ -11,6 +11,7 @@ import {
   listThermalDevices,
   printInvoiceThermal,
   printThermalTest,
+  printThermalViaBrowser,
   saveThermalProfile,
 } from '../../services/thermalPrinterService'
 import {
@@ -26,6 +27,10 @@ import {
   thermalModeFromSettings,
 } from '../../lib/invoiceThermal'
 import { downloadReceiptPdf } from '../../lib/receiptPdf'
+import { detectPrinterKind } from '../../services/printerProfile'
+import { getNormalProfile, saveNormalProfile, printInvoiceNormal } from '../../services/normalPrinterService'
+import { usePrinterWatcher } from '../../hooks/usePrinterWatcher'
+import { lockBodyScroll, unlockBodyScroll } from '../../hooks/useLockBodyScroll'
 
 const INVOICE_BUILDERS = { escpos: buildInvoiceEscpos, zpl: buildInvoiceZpl, epl: buildInvoiceEpl, tspl: buildInvoiceTspl, cpcl: buildInvoiceCpcl }
 const PAPER_WIDTHS = [
@@ -49,9 +54,48 @@ const COLUMN_MODES = [
   { id: '2', label: '2 columnas', sub: 'Compacto' },
   { id: '3', label: '3 columnas', sub: 'Detallado' },
 ]
+const NORMAL_PAPER_SIZES = [
+  { id: 'Letter', label: 'Carta (Letter)' },
+  { id: 'A4', label: 'A4' },
+]
+const NORMAL_ORIENTATIONS = [
+  { id: 'portrait', label: 'Vertical' },
+  { id: 'landscape', label: 'Horizontal' },
+]
+
+function normalizePrinterKey(name = '') {
+  return String(name || '').toLowerCase().trim().replace(/\s+usb$/i, '').replace(/\s*\(usb\)\s*$/i, '').replace(/\s*-\s*usb\s*$/i, '').replace(/\s+/g, ' ').trim()
+}
+function portScore(port = '') {
+  const p = String(port || '').toLowerCase()
+  if (p.includes('usb')) return 3
+  if (p.includes('9100')) return 3
+  if (p.startsWith('com')) return 2
+  if (p.includes('spool') && p.endsWith('.prn')) return 1
+  if (p.includes('wsd')) return 0
+  if (p.includes('portprompt') || p.includes('nul:') || p.includes('shrfax') || p.includes('ad_port')) return -1
+  if (!p) return -2
+  return 0
+}
+function dedupPrinters(list = []) {
+  const map = new Map()
+  for (const p of list) {
+    const rawName = p.printerName || p.productName || p.displayName || p.name || ''
+    const key = normalizePrinterKey(rawName)
+    if (!key) continue
+    const existing = map.get(key)
+    if (!existing) map.set(key, p)
+    else {
+      const sNew = portScore(p.portName || p.port || '')
+      const sOld = portScore(existing.portName || existing.port || '')
+      if (sNew > sOld) map.set(key, p)
+    }
+  }
+  return Array.from(map.values())
+}
 
 function viaLabel(via) {
-  return { usb: 'USB', bluetooth: 'Bluetooth', serial: 'Puerto serial', network: 'Red/LAN', download: 'Descarga', file: 'Archivo', config: 'Configuracion' }[via] || via
+  return { usb: 'USB', bluetooth: 'Bluetooth', serial: 'Puerto serial', network: 'Red/LAN', download: 'Descarga', file: 'Archivo', config: 'Configuracion', agent: 'Agente', spooler: 'Spooler', dialog: 'Diálogo sistema' }[via] || via
 }
 
 function protocolLabel(id) {
@@ -98,7 +142,29 @@ function Section({ icon: Icon, title, children }) {
 
 export function InvoiceThermalActions({ invoice, company, customer, qrText = '' }) {
   const toast = useToast()
+  const reactId = useId()
+  const base = reactId.replace(/:/g, '-')
+  const ids = {
+    mode: `thermal-mode-${base}`,
+    width: `thermal-width-${base}`,
+    customWidth: `thermal-custom-width-${base}`,
+    fontScale: `thermal-font-scale-${base}`,
+    lineSpacing: `thermal-line-spacing-${base}`,
+    networkHost: `thermal-network-host-${base}`,
+    networkPort: `thermal-network-port-${base}`,
+    baudRate: `thermal-baud-rate-${base}`,
+    drawer: `thermal-drawer-${base}`,
+    normalPrinter: `normal-printer-${base}`,
+    normalPaper: `normal-paper-${base}`,
+    normalOrientation: `normal-orientation-${base}`,
+    normalCopies: `normal-copies-${base}`,
+    manualThermalPrinter: `manual-thermal-printer-${base}`,
+    manualNormalPrinter: `manual-normal-printer-${base}`,
+    printMode: `print-mode-${base}`,
+  }
+
   const [profile, setProfile] = useState(() => ({ ...getThermalProfile() }))
+  const [normalProfile, setNormalProfile] = useState(() => ({ ...getNormalProfile() }))
   const [deviceInfo, setDeviceInfo] = useState(() => {
     const saved = getThermalProfile()
     return saved?.productName ? `${saved.productName} · ${String(saved.protocol || '').toUpperCase()}` : ''
@@ -108,28 +174,112 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
   const [showModal, setShowModal] = useState(false)
   const [devices, setDevices] = useState([])
 
+  const watcher = usePrinterWatcher({ autoConnectAgent: true })
+  const agentConnected = watcher.agentConnected
+  const allPrinters = watcher.printers
+
+  // Honest capability detection
+  const caps = useMemo(() => ({
+    usb: typeof navigator !== 'undefined' && !!navigator.usb,
+    serial: typeof navigator !== 'undefined' && !!navigator.serial,
+    bluetooth: typeof navigator !== 'undefined' && !!navigator.bluetooth,
+    agent: agentConnected,
+  }), [agentConnected])
+
+  // Effective printer kind: based on selected printer (profile) + watcher list
+  const effectiveKind = useMemo(() => {
+    // If user has selected a device that matches a watcher entry, use that entry's kind
+    const selectedRaw = allPrinters.find((p) =>
+      (profile.vendorId && Number(p.vendorId) === Number(profile.vendorId) && String(p.displayName || p.name) === String(profile.productName)) ||
+      (profile.vendorId && Number(p.vendorId) === Number(profile.vendorId)) ||
+      (profile.printerName && String(p.printerName || p.name) === String(profile.printerName)) ||
+      (normalProfile.printerName && String(p.printerName || p.name) === String(normalProfile.printerName))
+    )
+    if (selectedRaw) {
+      const k = selectedRaw._kind || detectPrinterKind(selectedRaw)
+      return k
+    }
+    // Fallback: detect from profile alone
+    const fromThermal = detectPrinterKind({ name: profile.productName, vendorId: profile.vendorId, protocol: profile.protocol })
+    // If there is a normal printer selected in normalProfile and no thermal selected, treat as normal
+    if (normalProfile.printerName) {
+      const normalMatch = allPrinters.find((p) => String(p.printerName || p.name) === String(normalProfile.printerName))
+      if (normalMatch) return normalMatch._kind || detectPrinterKind(normalMatch)
+      // If custom name not in list but agentConnected, respect that user wants normal path if thermal not strongly matched
+      if (fromThermal === 'normal' || !profile.productName) return 'normal'
+    }
+    // If we have real printers list and all are normal, show normal UI
+    if (allPrinters.length && allPrinters.every((p) => (p._kind || detectPrinterKind(p)) === 'normal')) return 'normal'
+    return fromThermal
+  }, [allPrinters, profile.productName, profile.vendorId, profile.protocol, profile.printerName, normalProfile.printerName])
+
+  const isThermal = effectiveKind === 'thermal'
+  const isNormal = effectiveKind === 'normal'
+
+  const dedupedDevices = useMemo(() => dedupPrinters(devices), [devices])
+  const dedupedAll = useMemo(() => dedupPrinters(allPrinters), [allPrinters])
+  const filteredDevices = useMemo(() => {
+    if (!dedupedDevices.length) return []
+    if (profile.printMode === 'manual') return dedupedDevices
+    const filtered = dedupedDevices.filter((d) => (d._kind || detectPrinterKind(d._raw || d)) === effectiveKind)
+    return filtered.length ? filtered : dedupedDevices
+  }, [dedupedDevices, effectiveKind, profile.printMode])
+  const thermalCount = useMemo(() => dedupedAll.filter((p) => (p._kind || detectPrinterKind(p)) === 'thermal').length, [dedupedAll])
+  const normalCount = useMemo(() => dedupedAll.filter((p) => (p._kind || detectPrinterKind(p)) === 'normal').length, [dedupedAll])
+
   useEffect(() => {
     if (!showModal) return
     let active = true
     listThermalDevices().then((list) => { if (active) setDevices(list) })
+    // También sincronizar con watcher
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (watcher.printers.length) setDevices(watcher.printers.map((p) => ({
+      vendorId: Number(p.vendorId || 0) || 0,
+      productName: p.displayName || p.name || p.printerName || 'Impresora',
+      protocol: p.protocol || detectPrinterKind(p) === 'thermal' ? 'escpos' : 'normal',
+      _kind: p._kind || detectPrinterKind(p),
+      _raw: p,
+      printerName: p.printerName || p.name,
+    })))
     return () => { active = false }
-  }, [showModal])
+  }, [showModal, watcher.printers])
 
   useEffect(() => {
     if (!showModal) return
     const handler = (event) => { if (event.key === 'Escape') setShowModal(false) }
-    document.body.style.overflow = 'hidden'
+    lockBodyScroll()
     window.addEventListener('keydown', handler)
     return () => {
-      document.body.style.overflow = ''
+      unlockBodyScroll()
       window.removeEventListener('keydown', handler)
     }
   }, [showModal])
+
+  // Mantener devices sincronizados en tiempo real sin abrir modal (para barra inferior)
+  useEffect(() => {
+    if (showModal) return
+    // Actualizar deviceInfo si el agente reporta cambio y hay printer seleccionada
+    if (agentConnected && allPrinters.length && profile.vendorId) {
+      const match = allPrinters.find((p) => Number(p.vendorId) === Number(profile.vendorId))
+      if (match && !deviceInfo) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setDeviceInfo(`${match.displayName || match.name} · ${String(match.protocol || '').toUpperCase() || 'AGENTE'}`)
+      }
+    }
+  }, [agentConnected, allPrinters, profile.vendorId, deviceInfo, showModal])
 
   function updateProfile(next) {
     setProfile((current) => {
       const merged = { ...current, ...next }
       saveThermalProfile(merged)
+      return merged
+    })
+  }
+
+  function updateNormal(next) {
+    setNormalProfile((current) => {
+      const merged = { ...current, ...next }
+      saveNormalProfile(merged)
       return merged
     })
   }
@@ -147,6 +297,8 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
       baudRate: profile.baudRate,
       networkHost: profile.networkHost,
       networkPort: profile.networkPort,
+      printerName: profile.printerName || '',
+      printMode: profile.printMode || 'auto',
       drawer: profile.drawer,
       drawerPulse: profile.drawerPulse,
       cut: profile.cut,
@@ -182,7 +334,12 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
       refreshDevices()
       toast.success(`Impresora agregada: ${detected.productName}. Protocolo ${String(detected.protocol || '').toUpperCase()} aplicado.`)
     } catch (error) {
-      toast.error(error.message)
+      const msg = String(error.message || '')
+      if (/driver de Windows|agente local|WinUSB/i.test(msg)) {
+        toast.error(msg)
+      } else {
+        toast.error(error.message)
+      }
     } finally {
       setBusy(false)
     }
@@ -219,24 +376,66 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
       setProfile({ ...getThermalProfile() })
       setManual(false)
       setDeviceInfo(`${added.productName} · BLUETOOTH`)
-      toast.success(`Impresora Bluetooth agregada: ${added.productName}.`)
+      toast.success(`Impresora Bluetooth agregada: ${added.productName}. Nota: impresoras Bluetooth clásico (SPP) requieren agente local vía puerto COM virtual.`)
     } catch (error) {
-      toast.error(error.message)
+      const msg = String(error.message || '')
+      if (/Clásico|Bluetooth/i.test(msg)) {
+        toast.error(msg)
+      } else {
+        toast.error(error.message)
+      }
     } finally {
       setBusy(false)
     }
   }
 
   function handleSelectDevice(device) {
-    updateProfile({ vendorId: device.vendorId, productName: device.productName, protocol: device.protocol, connection: 'usb', manualProtocol: false })
+    const kind = device._kind || detectPrinterKind(device._raw || device)
+    if (kind === 'normal') {
+      const printerName = device.printerName || device.productName
+      updateNormal({ printerName })
+      toast.success(`${device.productName} seleccionada (normal). Impresión por spooler sin diálogo si el agente está corriendo.`)
+      return
+    }
+    updateProfile({ vendorId: device.vendorId, productName: device.productName, printerName: device.printerName || device.productName, protocol: device.protocol, connection: 'usb', manualProtocol: false })
     setManual(false)
     setDeviceInfo(`${device.productName} · ${String(device.protocol || '').toUpperCase()}`)
-    toast.success(`${device.productName} seleccionada. Impresion instantanea sin dialogo.`)
+    toast.success(`${device.productName} seleccionada. Impresión ${device._kind === 'thermal' ? 'térmica' : 'normal'} lista.`)
   }
 
   async function handlePrint() {
     setBusy(true)
     try {
+      // ── Ruta automática según tipo detectado ──
+      if (isNormal) {
+        const printerName = normalProfile.printerName || devices.find((d) => (d._kind || detectPrinterKind(d)) === 'normal')?.printerName || ''
+        if (!printerName && !agentConnected) {
+          toast.error('No hay impresora normal seleccionada y el agente local no está corriendo. Sin agente no se puede evitar el diálogo del sistema.')
+          setShowModal(true)
+          return
+        }
+        const result = await printInvoiceNormal({
+          invoice, company, customer,
+          printerName,
+          paperSize: normalProfile.paperSize || 'Letter',
+          orientation: normalProfile.orientation || 'portrait',
+          copies: normalProfile.copies || 1,
+        })
+        if (result.ok) {
+          toast.success(`Factura enviada a ${result.device} sin diálogo (agente).`)
+        } else if (result.via === 'dialog' || result.fallbackToDialog) {
+          toast.info(result.error || 'Impresión silenciosa no disponible sin el agente local. Se abrirá el diálogo de impresión de tu sistema.')
+        } else if (result.via === 'config') {
+          toast.error(result.error || 'Falta configuración de impresora normal.')
+          setShowModal(true)
+        } else {
+          toast.error(result.error || 'No se pudo imprimir la factura.')
+          if (result.via === 'config') setShowModal(true)
+        }
+        return
+      }
+
+      // Térmica — impresión profesional: nunca descarga si es "Imprimir", siempre intenta diálogo/agente
       const result = await printInvoiceThermal({ invoice, company, customer, qrText, profileOverride: currentOptions() })
       if (result.ok) {
         if (result.protocol && result.protocol !== profile.protocol) {
@@ -245,8 +444,17 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
         } else {
           toast.success(`Factura enviada a ${result.device} (${viaLabel(result.via)}).`)
         }
+      } else if (result.via === 'dialog') {
+        toast.info(result.error || 'Se abrirá el diálogo del sistema: elija Trifusion POS-80 y confirme.')
+        try { await printThermalViaBrowser({ invoice, company, customer, qrText }) } catch {}
       } else if (result.via === 'download') {
         toast.info(result.error || 'Se descargo el archivo termico.')
+      } else if (result.via === 'agent' && result.error) {
+        toast.error(result.error)
+        if (String(result.error).includes('agente') || String(result.error).includes('driver')) setShowModal(true)
+      } else if (result.via === 'config') {
+        toast.error(result.error || 'No se pudo imprimir la factura.')
+        setShowModal(true)
       } else {
         toast.error(result.error || 'No se pudo imprimir la factura.')
         if (result.via === 'config') setShowModal(true)
@@ -261,10 +469,30 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
   async function handleTest() {
     setBusy(true)
     try {
+      if (isNormal) {
+        const printerName = normalProfile.printerName || devices.find((d) => (d._kind || detectPrinterKind(d)) === 'normal')?.printerName || ''
+        if (!printerName) {
+          toast.error('Seleccione primero la impresora normal en Configuración.')
+          setShowModal(true)
+          return
+        }
+        const res = await printInvoiceNormal({
+          invoice: { number: 'PRUEBA-001', totals: { total: 0 }, items: [{ name: 'Prueba normal', quantity: 1, price: 0, net: 0, tax: 0 }] },
+          company: company || { name: 'Prueba' },
+          customer: customer || { name: 'Cliente Prueba' },
+          printerName,
+          paperSize: normalProfile.paperSize || 'Letter',
+          orientation: normalProfile.orientation || 'portrait',
+          copies: 1,
+        })
+        if (res.ok) toast.success(`Prueba enviada a ${res.device} sin diálogo.`)
+        else toast.error(res.error || 'No se pudo enviar prueba normal.')
+        return
+      }
       const result = await printThermalTest({ profileOverride: currentOptions() })
       if (result.ok) {
         toast.success(`Prueba enviada a ${result.device} (${viaLabel(result.via)}). Verifique el ticket impreso.`)
-      } else if (result.via === 'config') {
+      } else if (result.via === 'config' || result.via === 'agent') {
         toast.error(result.error || 'Falta configuracion de la impresora.')
         setShowModal(true)
       } else {
@@ -308,61 +536,161 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
     toast.success('Perfil de impresora olvidado.')
   }
 
+  async function handleBrowserTicket() {
+    setBusy(true)
+    try {
+      const res = await printThermalViaBrowser({ invoice, company, customer, qrText })
+      if (res.via === 'config') toast.error(res.error)
+      else toast.info(res.error || 'Se abrirá el diálogo del sistema: seleccione Trifusion POS-80 y confirme.')
+    } catch (error) {
+      toast.error(String(error.message || error))
+    } finally { setBusy(false) }
+  }
+
+  const agentBanner = !agentConnected ? (
+    <span className="inline-flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-[11px] font-medium" style={{ borderColor: 'rgba(245,158,11,.35)', background: 'rgba(245,158,11,.08)', color: 'rgb(252,211,77)' }}>
+      <AlertTriangle size={12} /> Sin agente local — impresión limitada. Térmicas con driver, Bluetooth clásico y Red 9100 genérica requieren el agente. <a href="agent/README.md" target="_blank" rel="noreferrer" className="underline font-bold">Descargar agente de impresión local</a>
+    </span>
+  ) : (
+    <span className="inline-flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-[11px] font-medium" style={{ borderColor: 'rgba(16,185,129,.3)', background: 'rgba(16,185,129,.08)', color: 'rgb(167,243,208)' }}>
+      <Check size={12} /> Agente conectado — impresión silenciosa disponible (USB con driver, Bluetooth clásico via COM, Red 9100 y normales sin diálogo).
+    </span>
+  )
+
   return (
     <div className="no-print mt-3 flex w-full flex-wrap items-center gap-2 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line)', background: 'var(--bg-elevated)' }}>
-      <span className="inline-flex items-center gap-1.5 text-xs font-bold" style={{ color: 'var(--text-secondary)' }}><Cpu size={13} /> Impresion termica</span>
-      <select id="invoice-thermal-mode" name="invoice-thermal-mode" value={profile.protocol || 'escpos'} onChange={(event) => updateProfile({ protocol: event.target.value, manualProtocol: true })} className="input-dark max-w-64 py-1.5 text-xs" aria-label="invoice-thermal-mode" autoComplete="off">
-        {THERMAL_PROTOCOLS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-      </select>
-      <select id="invoice-thermal-width" name="invoice-thermal-width" value={paperWidthId} onChange={(event) => updateProfile({ paperWidth: event.target.value })} className="input-dark max-w-32 py-1.5 text-xs" aria-label="invoice-thermal-width" autoComplete="off">
-        <option value="58">58 mm</option>
-        <option value="80">80 mm</option>
-        <option value="112">112 mm</option>
-        <option value="custom">Personalizado</option>
-      </select>
+      <span className="inline-flex items-center gap-1.5 text-xs font-bold" style={{ color: 'var(--text-secondary)' }}><Cpu size={13} /> Impresión {isNormal ? 'normal' : 'térmica'}</span>
+
+      <div className="flex items-center gap-1 rounded-lg border px-1.5 py-1" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
+        <span className="text-[10px] font-bold mr-1" style={{ color: 'var(--text-tertiary)' }}>Modo:</span>
+        <button type="button" onClick={() => updateProfile({ printMode: 'auto' })} className={`rounded px-2 py-1 text-[11px] font-bold ${ (profile.printMode || 'auto') === 'auto' ? 'bg-white/15 text-white' : 'text-white/60'}`}>Automático</button>
+        <button type="button" onClick={() => updateProfile({ printMode: 'manual' })} className={`rounded px-2 py-1 text-[11px] font-bold ${ profile.printMode === 'manual' ? 'bg-white/15 text-white' : 'text-white/60'}`}>Manual</button>
+      </div>
+
+      {/* Selector rápido: si hay ambas clases, permitir ver que se adapta */}
+      {isThermal ? (
+        <>
+          <select id={ids.mode} name="thermal-protocol" value={profile.protocol || 'escpos'} onChange={(event) => updateProfile({ protocol: event.target.value, manualProtocol: true })} className="input-dark max-w-64 py-1.5 text-xs" aria-label="thermal-protocol" autoComplete="off">
+            {THERMAL_PROTOCOLS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+          </select>
+          <select id={ids.width} name="thermal-width" value={paperWidthId} onChange={(event) => updateProfile({ paperWidth: event.target.value })} className="input-dark max-w-32 py-1.5 text-xs" aria-label="thermal-width" autoComplete="off">
+            <option value="58">58 mm</option>
+            <option value="80">80 mm</option>
+            <option value="112">112 mm</option>
+            <option value="custom">Personalizado</option>
+          </select>
+        </>
+      ) : (
+        <>
+          <select id={ids.normalPrinter} name="normal-printer" value={normalProfile.printerName || ''} onChange={(event) => updateNormal({ printerName: event.target.value })} className="input-dark max-w-64 py-1.5 text-xs" aria-label="normal-printer" autoComplete="off">
+            <option value="">Seleccione impresora del sistema</option>
+            {(dedupedAll.filter((p) => (p._kind || detectPrinterKind(p)) === 'normal').length ? dedupedAll.filter((p) => (p._kind || detectPrinterKind(p)) === 'normal') : [{ name: normalProfile.printerName || 'Sin impresoras detectadas' }]).map((p) => {
+              const label = p.displayName || p.name || p.printerName || 'Impresora'
+              return <option key={label} value={p.printerName || label}>{label}</option>
+            })}
+          </select>
+          <select id={ids.normalPaper} name="normal-paper-size" value={normalProfile.paperSize || 'Letter'} onChange={(event) => updateNormal({ paperSize: event.target.value })} className="input-dark max-w-32 py-1.5 text-xs" aria-label="normal-paper-size" autoComplete="off">
+            {NORMAL_PAPER_SIZES.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+          </select>
+        </>
+      )}
+
+      {(profile.printMode === 'manual') && (
+        <div className="flex w-full items-center gap-2 rounded-lg border px-2 py-1.5" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
+          <span className="text-xs font-bold whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>Manual:</span>
+          <input id={ids.manualThermalPrinter} value={profile.printerName || normalProfile.printerName || ''} onChange={(e) => {
+            const v = e.target.value
+            updateProfile({ printerName: v })
+            updateNormal({ printerName: v })
+          }} placeholder="Ej: Trifusion POS-80" className="flex-1 bg-transparent text-xs outline-none placeholder:text-white/30" aria-label="manual-printer-name" autoComplete="off" />
+          <span className="text-[10px] hidden sm:inline" style={{ color: 'var(--text-tertiary)' }}>Escriba el nombre exacto como aparece en Windows (Panel de impresoras).</span>
+        </div>
+      )}
+
       <Button variant="ghost" icon={ScanSearch} onClick={handleDetect} disabled={busy}>Detectar impresora</Button>
-      <Button variant="ghost" icon={Settings2} onClick={() => setShowModal(true)} disabled={busy}>Configuracion</Button>
-      <Button variant="primary" icon={Printer} onClick={handlePrint} disabled={busy}>Imprimir ahora</Button>
+      <Button variant="ghost" icon={Settings2} onClick={() => setShowModal(true)} disabled={busy}>Configuración</Button>
+      <Button variant="primary" icon={Printer} onClick={handlePrint} disabled={busy}>Imprimir {profile.printMode === 'manual' ? 'manual' : 'auto'}</Button>
+      <Button variant="ghost" icon={Printer} onClick={handleBrowserTicket} disabled={busy} title="Imprime ticket 80mm directo desde navegador (muestra diálogo para elegir Trifusion POS-80)">Ticket navegador</Button>
       <Button variant="ghost" icon={TestTube2} onClick={handleTest} disabled={busy}>Prueba</Button>
       <Button variant="ghost" icon={Download} onClick={handleDownload} disabled={busy}>Descargar PDF</Button>
+
       <span className="w-full text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-        {manual
-          ? `Configuracion manual: ${activeProtocol.label} · ${activeConnection.label}${activeConnection.id === 'serial' ? ` · ${profile.baudRate || 9600} baudios` : ''} · ${paperWidthId === 'custom' ? `${profile.customWidthMm || 80} mm` : paperWidthId} mm`
-          : activeProtocol.desc}
-        {deviceInfo ? ` · Conectada: ${deviceInfo}` : ''}
-        {company?.labelPrintMode && !manual ? ` · Configuracion del sistema: ${company.labelPrintMode}` : ''}
+        {isThermal ? (
+          manual
+            ? `Configuración manual: ${activeProtocol.label} · ${activeConnection.label}${activeConnection.id === 'serial' ? ` · ${profile.baudRate || 9600} baudios` : ''} · ${paperWidthId === 'custom' ? `${profile.customWidthMm || 80} mm` : paperWidthId} mm`
+            : activeProtocol.desc
+        ) : (
+          `Impresora normal: ${normalProfile.paperSize || 'Letter'} · ${normalProfile.orientation === 'landscape' ? 'Horizontal' : 'Vertical'} · ${normalProfile.copies || 1} copia(s)${normalProfile.printerName ? ` · ${normalProfile.printerName}` : ''}`
+        )}
+        {deviceInfo && isThermal ? ` · Conectada: ${deviceInfo}` : ''}
+        {company?.labelPrintMode && !manual && isThermal ? ` · Config. sistema: ${company.labelPrintMode}` : ''}
+        {isNormal && !agentConnected ? ' · Sin agente: se abrirá diálogo del sistema (limitación del navegador).' : ''}
       </span>
 
+      {/* Banner honesto de capacidades */}
+      <div className="w-full">
+        {agentBanner}
+        {!caps.usb && !caps.agent ? (
+          <p className="mt-1 text-[11px] flex items-center gap-1.5" style={{ color: 'rgb(252,165,165)' }}><AlertTriangle size={12} /> WebUSB no disponible en este navegador (Safari/Firefox). Use Chrome/Edge de escritorio o el agente local.</p>
+        ) : null}
+        {!caps.serial && profile.connection === 'serial' && !caps.agent ? (
+          <p className="mt-1 text-[11px] flex items-center gap-1.5" style={{ color: 'rgb(252,165,165)' }}><AlertTriangle size={12} /> WebSerial no disponible. Use Chrome/Edge de escritorio o el agente local para COM/Serial real.</p>
+        ) : null}
+        {!caps.bluetooth && profile.connection === 'bluetooth' && !caps.agent ? (
+          <p className="mt-1 text-[11px]" style={{ color: 'rgb(252,165,165)' }}>Bluetooth Web solo soporta BLE. La mayoría de térmicas son Bluetooth Clásico (SPP) y requieren agente local (puerto COM virtual).</p>
+        ) : null}
+      </div>
+
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Configuracion de impresion termica" onClick={() => setShowModal(false)}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Configuración de impresión" onClick={() => setShowModal(false)}>
           <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border" style={{ borderColor: 'var(--line)', background: 'var(--bg-elevated)' }} onClick={(event) => event.stopPropagation()}>
             <div className="flex shrink-0 items-start justify-between gap-3 border-b px-4 py-3" style={{ borderColor: 'var(--line)', background: 'var(--bg-surface)' }}>
               <div>
-                <h2 className="font-display text-lg font-bold text-white">Configuracion de impresion termica</h2>
-                <p className="mt-0.5 text-xs text-white/50">Compatibilidad universal con cualquier impresora termica del mercado.</p>
+                <h2 className="font-display text-lg font-bold text-white">{isNormal ? 'Configuración de impresión normal' : 'Configuración de impresión térmica'}</h2>
+                <p className="mt-0.5 text-xs text-white/50">{isNormal ? 'Impresoras láser/inyección Carta/A4 vía spooler sin diálogo (requiere agente).' : 'Compatibilidad universal con cualquier impresora térmica del mercado.'}</p>
               </div>
-              <Button variant="ghost" icon={X} onClick={() => setShowModal(false)} aria-label="Cerrar configuracion" />
+              <Button variant="ghost" icon={X} onClick={() => setShowModal(false)} aria-label="Cerrar configuración" />
             </div>
 
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">
-              <Section icon={Printer} title="Impresora conectada">
+              {/* Estado agente */}
+              <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: agentConnected ? 'rgba(16,185,129,.3)' : 'rgba(245,158,11,.35)', background: agentConnected ? 'rgba(16,185,129,.08)' : 'rgba(245,158,11,.08)', color: agentConnected ? 'rgb(167,243,208)' : 'rgb(252,211,77)' }}>
+                <p className="font-bold flex items-center gap-2">{agentConnected ? <Check size={13} /> : <AlertTriangle size={13} />} {agentConnected ? 'Agente conectado' : 'Agente no conectado'}</p>
+                <p className="mt-1 text-[11px] leading-snug" style={{ color: 'rgba(255,255,255,.7)' }}>
+                  {agentConnected
+                    ? 'Impresión 100% silenciosa disponible: USB con driver (sin reclamar interfaz), Bluetooth clásico vía COM virtual y Red TCP 9100.'
+                    : 'Sin agente: térmicas con driver activo, Bluetooth clásico y Red 9100 genérica NO funcionarán desde el navegador. Se requiere el agente local. '}
+                  {!agentConnected ? <a href="agent/README.md" target="_blank" rel="noreferrer" className="underline font-bold text-white">Descargar agente de impresión local</a> : null}
+                </p>
+                {!caps.usb ? <p className="mt-1 text-[11px]" style={{ color: 'rgb(252,165,165)' }}>Este navegador no soporta WebUSB (Safari/Firefox). El agente es obligatorio para USB en este navegador.</p> : null}
+                {!caps.bluetooth ? <p className="mt-1 text-[11px]" style={{ color: 'rgb(252,165,165)' }}>Este navegador no soporta Web Bluetooth. Para Bluetooth, use Chrome/Edge o agente local.</p> : null}
+              </div>
+
+              <Section icon={Printer} title={isNormal ? `Impresoras del sistema — ${normalCount} normales` : `Impresora conectada — ${thermalCount} térmicas`}>
                 <div className="space-y-1.5">
-                  {devices.length === 0 && (
+                  {filteredDevices.length === 0 && (
                     <div className="rounded-lg border border-dashed px-3 py-4 text-center" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
-                      <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Ninguna impresora agregada aun</p>
-                      <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Use "Agregar impresora por USB" con la impresora enchufada.</p>
+                      <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{agentConnected ? (isNormal ? 'No hay impresoras normales detectadas' : 'No hay térmicas detectadas') : 'Ninguna impresora agregada aún'}</p>
+                      <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{agentConnected ? `Detectadas ${dedupedDevices.length} reales (filtradas a ${filteredDevices.length} ${isNormal ? 'normales' : 'térmicas'}). Use modo Manual si su modelo no aparece.` : 'Use "Agregar impresora por USB" con la impresora enchufada, o instale el agente para detección automática. Puede escribir el nombre manual abajo.'}</p>
+                      {!agentConnected ? <p className="mt-1 text-[11px]" style={{ color: 'rgb(252,165,165)' }}>Para impresoras ya instaladas en Windows/macOS (HP, Canon, Epson, etc.) instale el agente para verlas aquí o use el campo Manual.</p> : null}
                     </div>
                   )}
-                  {devices.map((device) => {
-                    const isSelected = Number(profile.vendorId) === device.vendorId
+                  {filteredDevices.map((device) => {
+                    const kind = device._kind || detectPrinterKind(device._raw || device)
+                    const isSelectedThermal = Number(profile.vendorId) === device.vendorId
+                    const isSelectedNormal = normalProfile.printerName && device.printerName === normalProfile.printerName
+                    const isSelected = kind === 'normal' ? isSelectedNormal : isSelectedThermal
                     return (
-                      <button key={`${device.vendorId}-${device.productName}`} type="button" onClick={() => handleSelectDevice(device)} className="flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition-all hover:opacity-90" style={{ borderColor: isSelected ? 'var(--blue)' : 'var(--line-subtle)', background: isSelected ? 'var(--bg-row-hover)' : 'var(--bg-input)' }}>
+                      <button key={`${device.vendorId}-${device.productName}-${device.printerName || ''}`} type="button" onClick={() => handleSelectDevice(device)} className="flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition-all hover:opacity-90" style={{ borderColor: isSelected ? 'var(--blue)' : 'var(--line-subtle)', background: isSelected ? 'var(--bg-row-hover)' : 'var(--bg-input)' }}>
                         <span className="flex min-w-0 flex-col items-start">
-                          <span className="truncate text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{device.productName}</span>
-                          <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{protocolLabel(device.protocol)} · VID 0x{device.vendorId.toString(16).toUpperCase().padStart(4, '0')}</span>
+                          <span className="inline-flex items-center gap-1.5 truncate text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                            {kind === 'normal' ? <Monitor size={13} /> : <Usb size={13} />} {device.productName}
+                            <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold" style={{ background: kind === 'thermal' ? 'rgba(59,130,246,.15)' : 'rgba(16,185,129,.15)', color: kind === 'thermal' ? 'rgb(147,197,253)' : 'rgb(167,243,208)' }}>{kind === 'thermal' ? 'TÉRMICA' : 'NORMAL'}</span>
+                          </span>
+                          <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{kind === 'normal' ? (device.printerName || 'Spooler') : `${protocolLabel(device.protocol)} · VID 0x${Number(device.vendorId || 0).toString(16).toUpperCase().padStart(4, '0')}`}</span>
                         </span>
                         {isSelected ? (
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: 'rgba(16,185,129,.16)', color: 'var(--green-bright)' }}><Check size={11} /> Instantanea</span>
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: 'rgba(16,185,129,.16)', color: 'var(--green-bright)' }}><Check size={11} /> Seleccionada</span>
                         ) : (
                           <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: 'rgba(255,255,255,.1)', color: 'var(--text-secondary)' }}>Usar</span>
                         )}
@@ -374,115 +702,178 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
                   <Button variant="primary" icon={Plus} onClick={handleAddUsb} disabled={busy}>Agregar impresora por USB</Button>
                   <Button variant="ghost" icon={Bluetooth} onClick={handleAddBluetooth} disabled={busy}>Agregar por Bluetooth</Button>
                   <Button variant="ghost" icon={RefreshCw} onClick={refreshDevices} disabled={busy}>Buscar impresoras</Button>
+                  {!agentConnected ? <a href="agent/README.md" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold" style={{ borderColor: 'rgba(245,158,11,.35)', background: 'rgba(245,158,11,.12)', color: 'rgb(252,211,77)' }}><Download size={13} /> Descargar agente</a> : null}
                 </div>
                 <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-                  Chrome mostrara primero solo impresoras; si su modelo no aparece, se ofrece la lista completa automaticamente. Una vez agregada, cada impresion es instantanea: sin dialogo, sin permisos repetidos.
+                  {agentConnected ? 'Detección en tiempo real activa: al conectar/desconectar una impresora, la lista se actualiza sola (agente + WebUSB/Serial).' : 'Chrome mostrará primero solo impresoras; si su modelo no aparece, se ofrece la lista completa automáticamente. Con agente, la detección es automática y sin diálogos repetidos.'}
                 </p>
-              </Section>
-
-              <Section icon={Cpu} title="Tipo de impresion">
-                <div className="space-y-2">
-                  <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Protocolo del lenguaje de la impresora</p>
-                  <Segmented options={THERMAL_PROTOCOLS} value={profile.protocol || 'escpos'} onChange={(id) => updateProfile({ protocol: id, manualProtocol: true })} columns={5} />
+                <div className="flex flex-col gap-1.5 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
+                  <span className="text-xs font-bold flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}><Wrench size={11} /> Manual — nombre exacto en Windows</span>
+                  <input id={ids.manualThermalPrinter} value={profile.printerName || normalProfile.printerName || ''} onChange={(e) => { const v = e.target.value; updateProfile({ printerName: v, printMode: 'manual' }); updateNormal({ printerName: v }) }} placeholder="Ej: Trifusion POS-80" className="input-dark py-1.5 text-xs" aria-label="manual-printer-name" autoComplete="off" />
+                  <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>Útil para virtuales que no aparecen (ej. Trifusion POS-80, POS80, 80mm Thermal Printer, EPSON TM-T20). Si escribe aquí, se usa este nombre vía agente spooler (silencioso) o diálogo del sistema si no hay agente.</span>
                 </div>
-                <div className="space-y-2">
-                  <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Metodo de conexion</p>
-                  <Segmented options={THERMAL_CONNECTIONS} value={profile.connection || 'auto'} onChange={(id) => updateProfile({ connection: id })} columns={2} />
+                <div className="flex gap-2">
+                  <Button variant="ghost" icon={Printer} onClick={handleBrowserTicket} disabled={busy}>Ticket navegador (elige POS-80)</Button>
                 </div>
               </Section>
 
-              <Section icon={Ruler} title="Ancho de papel">
-                <div className="grid grid-cols-4 gap-1.5">
-                  {PAPER_WIDTHS.map((width) => (
-                    <button key={width.id} type="button" onClick={() => updateProfile({ paperWidth: width.id })} className="rounded-lg border px-1.5 py-2 text-center transition-all" style={{ borderColor: paperWidthId === width.id ? 'var(--blue)' : 'var(--line-subtle)', background: paperWidthId === width.id ? 'var(--bg-row-hover)' : 'var(--bg-input)' }}>
-                      <div className="mx-auto mb-1.5 flex h-7 items-end justify-center">
-                        <div className="rounded-sm" style={{ width: `${Math.max(18, Math.min(100, (width.mm || 80) / 1.2))}%`, height: 16, background: paperWidthId === width.id ? 'var(--blue)' : 'rgba(255,255,255,.28)' }} />
+              {/* ── Térmica: mostrar solo si kind es térmica ── */}
+              {isThermal && (
+                <>
+                  <Section icon={Cpu} title="Tipo de impresión">
+                    <div className="space-y-2">
+                      <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Protocolo del lenguaje de la impresora</p>
+                      <Segmented options={THERMAL_PROTOCOLS} value={profile.protocol || 'escpos'} onChange={(id) => updateProfile({ protocol: id, manualProtocol: true })} columns={5} />
+                      {!caps.usb ? <p className="text-[11px]" style={{ color: 'rgb(252,165,165)' }}>WebUSB no disponible en este navegador. El agente permite USB igualmente (vía driver).</p> : null}
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Método de conexión</p>
+                      <Segmented options={THERMAL_CONNECTIONS} value={profile.connection || 'auto'} onChange={(id) => updateProfile({ connection: id })} columns={2} />
+                      {profile.connection === 'bluetooth' && !caps.bluetooth ? <p className="text-[11px]" style={{ color: 'rgb(252,165,165)' }}>Web Bluetooth (BLE) no disponible aquí. Para Bluetooth clásico, empareje en el SO y use el agente (puerto COM virtual).</p> : null}
+                    </div>
+                  </Section>
+
+                  <Section icon={Ruler} title="Ancho de papel">
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {PAPER_WIDTHS.map((width) => (
+                        <button key={width.id} type="button" onClick={() => updateProfile({ paperWidth: width.id })} className="rounded-lg border px-1.5 py-2 text-center transition-all" style={{ borderColor: paperWidthId === width.id ? 'var(--blue)' : 'var(--line-subtle)', background: paperWidthId === width.id ? 'var(--bg-row-hover)' : 'var(--bg-input)' }}>
+                          <div className="mx-auto mb-1.5 flex h-7 items-end justify-center">
+                            <div className="rounded-sm" style={{ width: `${Math.max(18, Math.min(100, (width.mm || 80) / 1.2))}%`, height: 16, background: paperWidthId === width.id ? 'var(--blue)' : 'rgba(255,255,255,.28)' }} />
+                          </div>
+                          <span className="block text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{width.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {paperWidthId === 'custom' && (
+                      <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
+                        <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Ancho personalizado (mm)</span>
+                        <input id={ids.customWidth} name="thermal-custom-width" type="number" min="40" max="150" value={profile.customWidthMm || 80} onChange={(event) => updateProfile({ customWidthMm: Number(event.target.value) || 80 })} className="input-dark max-w-24 py-1 text-xs" aria-label="ancho-personalizado" autoComplete="off" />
                       </div>
-                      <span className="block text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{width.label}</span>
-                    </button>
-                  ))}
-                </div>
-                {paperWidthId === 'custom' && (
-                  <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
-                    <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Ancho personalizado (mm)</span>
-                    <input id="thermal-custom-width" name="thermal-custom-width" type="number" min="40" max="150" value={profile.customWidthMm || 80} onChange={(event) => updateProfile({ customWidthMm: Number(event.target.value) || 80 })} className="input-dark max-w-24 py-1 text-xs" aria-label="ancho-personalizado" autoComplete="off" />
-                  </div>
-                )}
-              </Section>
+                    )}
+                  </Section>
 
-              <Section icon={Wrench} title="Hardware">
-                <div className="space-y-2">
-                  <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Corte automatico al finalizar</p>
-                  <Segmented options={CUT_MODES} value={profile.cut || 'full'} onChange={(id) => updateProfile({ cut: id })} columns={3} />
-                </div>
-                <Switch label="Apertura de gaveta (cajon de dinero)" sub="Impulso al finalizar el ticket" checked={profile.drawer !== false} onChange={(drawer) => updateProfile({ drawer })} />
-                {profile.drawer !== false && (
-                  <Segmented options={[{ id: 60, label: '60 ms' }, { id: 100, label: '100 ms' }, { id: 240, label: '240 ms' }]} value={Number(profile.drawerPulse) || 60} onChange={(id) => updateProfile({ drawerPulse: Number(id) })} columns={3} />
-                )}
-              </Section>
+                  <Section icon={Wrench} title="Hardware">
+                    <div className="space-y-2">
+                      <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Corte automático al finalizar</p>
+                      <Segmented options={CUT_MODES} value={profile.cut || 'full'} onChange={(id) => updateProfile({ cut: id })} columns={3} />
+                    </div>
+                    <Switch label="Apertura de gaveta (cajón de dinero)" sub="Impulso al finalizar el ticket" checked={profile.drawer !== false} onChange={(drawer) => updateProfile({ drawer })} />
+                    {profile.drawer !== false && (
+                      <Segmented options={[{ id: 60, label: '60 ms' }, { id: 100, label: '100 ms' }, { id: 240, label: '240 ms' }]} value={Number(profile.drawerPulse) || 60} onChange={(id) => updateProfile({ drawerPulse: Number(id) })} columns={3} />
+                    )}
+                  </Section>
 
-              <Section icon={PenLine} title="Diseno del ticket">
-                <div className="space-y-2">
-                  <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Estilo de ticket</p>
-                  <Segmented options={[{ id: 'classic', label: 'Clásico' }, { id: 'modern', label: 'Moderno' }]} value={profile.ticketStyle || 'classic'} onChange={(id) => updateProfile({ ticketStyle: id })} columns={2} />
-                  <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>La plantilla moderna usa video invertido y subrayado; pruebe con 'Probar impresion' antes de usarla en facturas reales, ya que no todas las impresoras termicas soportan estos efectos de forma identica.</p>
-                </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <Switch label="Logo / nombre de empresa" sub="Cabecera en grande" checked={profile.logo !== false} onChange={(logo) => updateProfile({ logo })} />
-                  <Switch label="Codigo QR" sub="Validacion de la factura" checked={profile.qrEnabled !== false} onChange={(qrEnabled) => updateProfile({ qrEnabled })} />
-                  <Switch label="Codigo de barras" sub="Del numero de factura" checked={profile.barcode !== false} onChange={(barcode) => updateProfile({ barcode })} />
-                  <Switch label="Texto en negrita" sub="Titulos y totales enfatizados" checked={profile.bold !== false} onChange={(bold) => updateProfile({ bold })} />
-                </div>
-                <Switch label="Texto acentuado (á, é, ñ) — experimental" sub="Requiere que su impresora soporte la pagina de codigos CP858 (Multilingue Latino I); pruebe con 'Probar impresion' antes de usarlo en facturas reales." checked={profile.accentedText === true} onChange={(accentedText) => updateProfile({ accentedText })} />
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
-                  <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Tamano de fuente (titulos y total)</span>
-                  <select id="thermal-font-scale" name="thermal-font-scale" value={Number(profile.fontScale) || 0} onChange={(event) => updateProfile({ fontScale: Number(event.target.value) })} className="input-dark max-w-36 py-1 text-xs" aria-label="tamano-fuente" autoComplete="off">
-                    {FONT_SCALES.map((scale) => <option key={scale.id} value={scale.id}>{scale.label}</option>)}
-                  </select>
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
-                  <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Interlineado: <span className="font-bold" style={{ color: 'var(--blue-bright)' }}>{profile.lineSpacing || 30} / 60</span></span>
-                  <input id="thermal-line-spacing" name="thermal-line-spacing" type="range" min="20" max="60" value={profile.lineSpacing || 30} onChange={(event) => updateProfile({ lineSpacing: Number(event.target.value) })} className="w-36 accent-blue-500" aria-label="interlineado" autoComplete="off" />
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Columnas de la tabla de articulos</p>
-                  <Segmented options={COLUMN_MODES} value={profile.columns || '2'} onChange={(id) => updateProfile({ columns: id })} columns={2} />
-                </div>
-              </Section>
+                  <Section icon={PenLine} title="Diseño del ticket">
+                    <div className="space-y-2">
+                      <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Estilo de ticket</p>
+                      <Segmented options={[{ id: 'classic', label: 'Clásico' }, { id: 'modern', label: 'Moderno' }]} value={profile.ticketStyle || 'classic'} onChange={(id) => updateProfile({ ticketStyle: id })} columns={2} />
+                      <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>La plantilla moderna usa video invertido y subrayado; pruebe con 'Probar impresión' antes de usarla en facturas reales.</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <Switch label="Logo / nombre de empresa" sub="Cabecera en grande" checked={profile.logo !== false} onChange={(logo) => updateProfile({ logo })} />
+                      <Switch label="Código QR" sub="Validación de la factura" checked={profile.qrEnabled !== false} onChange={(qrEnabled) => updateProfile({ qrEnabled })} />
+                      <Switch label="Código de barras" sub="Del número de factura" checked={profile.barcode !== false} onChange={(barcode) => updateProfile({ barcode })} />
+                      <Switch label="Texto en negrita" sub="Títulos y totales enfatizados" checked={profile.bold !== false} onChange={(bold) => updateProfile({ bold })} />
+                    </div>
+                    <Switch label="Texto acentuado (á, é, ñ) — experimental" sub="Requiere que su impresora soporte la página de códigos CP858; pruebe con 'Probar impresión'." checked={profile.accentedText === true} onChange={(accentedText) => updateProfile({ accentedText })} />
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
+                      <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Tamaño de fuente (títulos y total)</span>
+                      <select id={ids.fontScale} name="thermal-font-scale" value={Number(profile.fontScale) || 0} onChange={(event) => updateProfile({ fontScale: Number(event.target.value) })} className="input-dark max-w-36 py-1 text-xs" aria-label="tamano-fuente" autoComplete="off">
+                        {FONT_SCALES.map((scale) => <option key={scale.id} value={scale.id}>{scale.label}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
+                      <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Interlineado: <span className="font-bold" style={{ color: 'var(--blue-bright)' }}>{profile.lineSpacing || 30} / 60</span></span>
+                      <input id={ids.lineSpacing} name="thermal-line-spacing" type="range" min="20" max="60" value={profile.lineSpacing || 30} onChange={(event) => updateProfile({ lineSpacing: Number(event.target.value) })} className="w-36 accent-blue-500" aria-label="interlineado" autoComplete="off" />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Columnas de la tabla de artículos</p>
+                      <Segmented options={COLUMN_MODES} value={profile.columns || '2'} onChange={(id) => updateProfile({ columns: id })} columns={2} />
+                    </div>
+                  </Section>
 
-              {profile.connection === 'network' && (
-                <Section icon={Network} title="Red / LAN">
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
-                    <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Direccion IP de la impresora</span>
-                    <input id="thermal-network-host" name="thermal-network-host" type="text" placeholder="192.168.1.50" value={profile.networkHost || ''} onChange={(event) => updateProfile({ networkHost: event.target.value.trim() })} className="input-dark max-w-40 py-1 text-xs" aria-label="ip-impresora" autoComplete="off" />
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
-                    <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Puerto WebPRNT</span>
-                    <input id="thermal-network-port" name="thermal-network-port" type="number" min="1" max="65535" value={profile.networkPort || 8001} onChange={(event) => updateProfile({ networkPort: Number(event.target.value) || 8001 })} className="input-dark max-w-24 py-1 text-xs" aria-label="puerto-webprnt" autoComplete="off" />
-                  </div>
-                  <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Usa la API WebPRNT (Star) u otra impresora de red compatible con envio HTTP de datos crudos. La impresora debe estar en la misma red.</p>
-                </Section>
+                  {profile.connection === 'network' && (
+                    <Section icon={Network} title="Red / LAN">
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
+                        <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Dirección IP de la impresora</span>
+                        <input id={ids.networkHost} name="thermal-network-host" type="text" placeholder="192.168.1.50" value={profile.networkHost || ''} onChange={(event) => updateProfile({ networkHost: event.target.value.trim() })} className="input-dark max-w-40 py-1 text-xs" aria-label="ip-impresora" autoComplete="off" />
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
+                        <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Puerto</span>
+                        <input id={ids.networkPort} name="thermal-network-port" type="number" min="1" max="65535" value={profile.networkPort || 8001} onChange={(event) => updateProfile({ networkPort: Number(event.target.value) || 8001 })} className="input-dark max-w-24 py-1 text-xs" aria-label="puerto" autoComplete="off" />
+                      </div>
+                      <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                        {agentConnected ? 'Con agente: se usará socket TCP crudo a puerto 9100 (genérica). Sin agente, solo WebPRNT (Star) por HTTP.' : 'Sin agente: solo WebPRNT (Star). Para 9100 genérica, instale el agente.'}
+                      </p>
+                    </Section>
+                  )}
+
+                  {profile.connection === 'serial' && (
+                    <Section icon={Cable} title="Puerto serial / COM">
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
+                        <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Velocidad (baud rate)</span>
+                        <select id={ids.baudRate} name="thermal-baud-rate" value={profile.baudRate || 9600} onChange={(event) => updateProfile({ baudRate: Number(event.target.value) })} className="input-dark max-w-32 py-1 text-xs" aria-label="baud-rate" autoComplete="off">
+                          {[9600, 19200, 38400, 57600, 115200].map((rate) => <option key={rate} value={rate}>{rate}</option>)}
+                        </select>
+                      </div>
+                      <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{agentConnected ? 'Con agente: soporta COM real y Bluetooth clásico vía puerto COM virtual.' : 'Chrome pedirá seleccionar el puerto COM (WebSerial). Para Bluetooth clásico, use el agente.'}</p>
+                    </Section>
+                  )}
+                </>
               )}
 
-              {profile.connection === 'serial' && (
-                <Section icon={Cable} title="Puerto serial / COM">
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
-                    <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Velocidad (baud rate)</span>
-                    <select id="thermal-baud-rate" name="thermal-baud-rate" value={profile.baudRate || 9600} onChange={(event) => updateProfile({ baudRate: Number(event.target.value) })} className="input-dark max-w-32 py-1 text-xs" aria-label="baud-rate" autoComplete="off">
-                      {[9600, 19200, 38400, 57600, 115200].map((rate) => <option key={rate} value={rate}>{rate}</option>)}
-                    </select>
-                  </div>
-                  <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Chrome le pedira seleccionar el puerto COM de la impresora al imprimir (WebSerial).</p>
-                </Section>
+              {/* ── Normal: mostrar solo si kind es normal ── */}
+              {isNormal && (
+                <>
+                  <Section icon={FileText} title="Papel y copias">
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
+                      <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Impresora del sistema</span>
+                      <select id={ids.normalPrinter} name="normal-printer" value={normalProfile.printerName || ''} onChange={(e) => updateNormal({ printerName: e.target.value })} className="input-dark max-w-52 py-1 text-xs" aria-label="impresora-normal" autoComplete="off">
+                        <option value="">Seleccione impresora</option>
+                        {dedupedAll.filter((p) => (p._kind || detectPrinterKind(p)) === 'normal').map((p) => (
+                          <option key={p.printerName || p.name} value={p.printerName || p.name}>{p.displayName || p.name}</option>
+                        ))}
+                        {dedupedAll.filter((p) => (p._kind || detectPrinterKind(p)) === 'normal').length === 0 && normalProfile.printerName ? <option value={normalProfile.printerName}>{normalProfile.printerName}</option> : null}
+                      </select>
+                    </div>
+                    {!agentConnected ? <p className="text-[11px] flex items-center gap-1.5" style={{ color: 'rgb(252,211,77)' }}><AlertTriangle size={11} /> Sin agente no hay impresión silenciosa: se abrirá el diálogo del sistema (restricción de seguridad del navegador, no un bug).</p> : null}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Tamaño de papel</span>
+                        <select id={ids.normalPaper} name="normal-paper" value={normalProfile.paperSize || 'Letter'} onChange={(e) => updateNormal({ paperSize: e.target.value })} className="input-dark py-1 text-xs" aria-label="papel-normal" autoComplete="off">
+                          {NORMAL_PAPER_SIZES.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Orientación</span>
+                        <select id={ids.normalOrientation} name="normal-orientation" value={normalProfile.orientation || 'portrait'} onChange={(e) => updateNormal({ orientation: e.target.value })} className="input-dark py-1 text-xs" aria-label="orientacion-normal" autoComplete="off">
+                          {NORMAL_ORIENTATIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
+                      <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Número de copias</span>
+                      <input id={ids.normalCopies} name="normal-copies" type="number" min="1" max="99" value={normalProfile.copies || 1} onChange={(e) => updateNormal({ copies: Math.max(1, Number(e.target.value) || 1) })} className="input-dark max-w-24 py-1 text-xs" aria-label="copias" autoComplete="off" />
+                    </div>
+                    <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Con agente, el PDF se envía directo al spooler sin diálogo. Sin agente, se usa window.print() y el navegador siempre mostrará su diálogo (limitación real, no configurable).</p>
+                  </Section>
+
+                  <Section icon={Monitor} title="Nota sobre impresión silenciosa">
+                    <p className="text-xs leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                      La impresión normal silenciosa <b>solo</b> es posible con el agente local. Es una restricción de seguridad de todos los navegadores: ninguna página puede imprimir en una láser/inyección sin mostrar el diálogo del sistema, salvo vía un agente nativo que hable con el spooler.
+                    </p>
+                    {!agentConnected ? <a href="agent/README.md" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold" style={{ borderColor: 'rgba(59,130,246,.4)', background: 'rgba(59,130,246,.12)', color: 'rgb(147,197,253)' }}><Download size={12} /> Descargar agente de impresión local</a> : null}
+                  </Section>
+                </>
               )}
             </div>
 
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t px-4 py-3" style={{ borderColor: 'var(--line)', background: 'var(--bg-surface)' }}>
-              <Button variant="ghost" icon={RotateCcw} onClick={handleResetAuto}>Volver a automatico</Button>
+              <Button variant="ghost" icon={RotateCcw} onClick={handleResetAuto}>Volver a automático</Button>
               <Button variant="ghost" icon={Trash2} onClick={handleForget}>Olvidar impresora</Button>
-              <Button variant="ghost" icon={Download} onClick={handleDownloadRaw} disabled={busy}>Descargar crudo</Button>
-              <Button variant="ghost" icon={TestTube2} onClick={handleTest} disabled={busy}>Probar impresion</Button>
-              <Button variant="primary" icon={Save} onClick={() => { setShowModal(false); toast.success('Configuracion termica guardada y recordada.') }}>Guardar</Button>
+              {isThermal ? <Button variant="ghost" icon={Download} onClick={handleDownloadRaw} disabled={busy}>Descargar crudo</Button> : null}
+              <Button variant="ghost" icon={TestTube2} onClick={handleTest} disabled={busy}>Probar impresión</Button>
+              <Button variant="primary" icon={Save} onClick={() => { setShowModal(false); toast.success(isNormal ? 'Configuración normal guardada.' : 'Configuración térmica guardada y recordada.') }}>Guardar</Button>
             </div>
           </div>
         </div>
@@ -490,3 +881,7 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
     </div>
   )
 }
+
+// Mantener alias si alguna pantalla importa InvoicePrintActions
+export const InvoicePrintActions = InvoiceThermalActions
+export default InvoiceThermalActions

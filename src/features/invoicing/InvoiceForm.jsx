@@ -411,8 +411,8 @@ export function InvoiceForm({ initialInvoice, duplicateOf, onDone }) {
         </div>
       </aside>
 
-      <Modal open={previewOpen} onClose={() => setPreviewOpen(false)} title="Vista previa" size="xl">
-        <InvoicePreview invoice={invoiceForPreview} company={company} customer={selectedCustomer} format="letter" showActions={false} />
+      <Modal open={previewOpen && !successInvoice} onClose={() => setPreviewOpen(false)} title="Vista previa" size="xl">
+        {!successInvoice ? <InvoicePreview invoice={invoiceForPreview} company={company} customer={selectedCustomer} format="letter" showActions={false} /> : null}
       </Modal>
 
       <Modal open={customerModal} onClose={() => setCustomerModal(false)} title="Cliente rapido" size="md" footer={<div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setCustomerModal(false)}>Cancelar</Button><Button variant="success" onClick={saveQuickCustomer}>Guardar</Button></div>}>

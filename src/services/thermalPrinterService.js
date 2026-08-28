@@ -15,7 +15,8 @@ import {
   downloadThermalFile,
   THERMAL_PROTOCOLS,
 } from '../lib/invoiceThermal'
-import { buildTestReceiptPdf, downloadReceiptPdf } from '../lib/receiptPdf'
+import { buildReceiptPdf, buildTestReceiptPdf, downloadReceiptPdf } from '../lib/receiptPdf'
+import * as printAgentClient from './printAgentClient'
 
 const PROFILE_KEY = 'erp.thermalPrinterProfile'
 const FILE_EXTENSION = { escpos: 'prn', zpl: 'zpl', epl: 'epl', tspl: 'tspl', cpcl: 'cpl' }
@@ -57,6 +58,31 @@ async function requestBluetoothDevice() {
 }
 
 export async function listThermalDevices() {
+  // ── Si el agente está conectado, priorizar impresoras reales del SO (USB con driver, Serial, BT COM virtual, Red)
+  if (printAgentClient.isAgentConnected()) {
+    try {
+      const printers = await printAgentClient.listPrintersViaAgent()
+      if (Array.isArray(printers) && printers.length) {
+        // Mapear al formato esperado por la UI térmica existente
+        return printers.map((p) => ({
+          vendorId: Number(p.vendorId || p.vid || 0) || 0,
+          productName: p.displayName || p.name || p.printerName || p.productName || 'Impresora',
+          serialNumber: p.serialNumber || p.serial || '',
+          protocol: p.protocol || detectProtocolFromVendor(Number(p.vendorId || 0)),
+          // Extras para distinguir origen
+          _raw: p,
+          _source: p.source || 'agent',
+          _kind: p.kind || (p.portName && String(p.portName).includes('9100') ? 'thermal' : 'normal'),
+          printerName: p.printerName || p.name,
+          portName: p.portName || '',
+          connection: p.connection || (p.kind === 'thermal' ? 'usb' : 'spooler'),
+        }))
+      }
+    } catch {
+      // fallback a WebUSB
+    }
+  }
+
   if (!navigator.usb) return []
   try {
     const devices = await navigator.usb.getDevices()
@@ -65,6 +91,7 @@ export async function listThermalDevices() {
       productName: device.productName || 'Impresora USB',
       serialNumber: device.serialNumber || '',
       protocol: detectProtocolFromVendor(device.vendorId),
+      _source: 'webusb',
     }))
   } catch {
     return []
@@ -79,6 +106,8 @@ const DEFAULT_PROFILE = {
   baudRate: 9600,
   networkHost: '',
   networkPort: 8001,
+  printerName: '',
+  printMode: 'auto', // auto | manual
   drawer: true,
   drawerPulse: 60,
   cut: 'full',
@@ -116,6 +145,119 @@ export function clearThermalProfile() {
     /* almacenamiento no disponible */
   }
 }
+
+/* ---------------- detección en tiempo real (Parte 3) ---------------- */
+// Listeners centralizados para USB/Serial + agente. No quita nada existente; solo agrega.
+
+const thermalDeviceListeners = new Set()
+let usbSerialListenersAttached = false
+let agentUnsubscribe = null
+let usbRefreshHandler = null
+let serialRefreshHandler = null
+
+function detachUsbSerialListenersIfNeeded() {
+  if (thermalDeviceListeners.size !== 0) return
+  if (!usbSerialListenersAttached) return
+  try {
+    if (usbRefreshHandler && typeof navigator !== 'undefined' && navigator.usb?.removeEventListener) {
+      navigator.usb.removeEventListener('connect', usbRefreshHandler)
+      navigator.usb.removeEventListener('disconnect', usbRefreshHandler)
+    }
+  } catch { /* ignore */ }
+  try {
+    if (serialRefreshHandler && typeof navigator !== 'undefined' && navigator.serial?.removeEventListener) {
+      navigator.serial.removeEventListener('connect', serialRefreshHandler)
+      navigator.serial.removeEventListener('disconnect', serialRefreshHandler)
+    }
+  } catch { /* ignore */ }
+  if (agentUnsubscribe) {
+    try { agentUnsubscribe() } catch { /* ignore */ }
+    agentUnsubscribe = null
+  }
+  usbSerialListenersAttached = false
+  usbRefreshHandler = null
+  serialRefreshHandler = null
+}
+
+function emitThermalDevices(list) {
+  for (const fn of thermalDeviceListeners) {
+    try { fn(Array.isArray(list) ? list.slice() : []) } catch { /* ignore */ }
+  }
+}
+
+function ensureUsbSerialListeners() {
+  if (usbSerialListenersAttached) return
+  usbSerialListenersAttached = true
+
+  const refresh = async () => {
+    try {
+      const list = await listThermalDevices()
+      emitThermalDevices(list)
+    } catch { /* ignore */ }
+  }
+  usbRefreshHandler = refresh
+  serialRefreshHandler = refresh
+
+  try {
+    if (typeof navigator !== 'undefined' && navigator.usb?.addEventListener) {
+      navigator.usb.addEventListener('connect', refresh)
+      navigator.usb.addEventListener('disconnect', refresh)
+    }
+  } catch { /* usb no disponible */ }
+
+  try {
+    if (typeof navigator !== 'undefined' && navigator.serial?.addEventListener) {
+      navigator.serial.addEventListener('connect', refresh)
+      navigator.serial.addEventListener('disconnect', refresh)
+    }
+  } catch { /* serial no disponible */ }
+
+  // Suscribir al agente también (push cada 2.5s)
+  try {
+    if (printAgentClient.onPrinterListChanged) {
+      agentUnsubscribe = printAgentClient.onPrinterListChanged((printers) => {
+        // Convertir printers del agente al formato térmico para listeners legacy
+        const mapped = Array.isArray(printers)
+          ? printers.map((p) => ({
+              vendorId: Number(p.vendorId || 0) || 0,
+              productName: p.displayName || p.name || p.printerName || 'Impresora',
+              serialNumber: p.serialNumber || '',
+              protocol: p.protocol || detectProtocolFromVendor(Number(p.vendorId || 0)),
+              _raw: p,
+              _source: 'agent',
+            }))
+          : []
+        emitThermalDevices(mapped)
+      })
+    }
+  } catch { /* agent no disponible */ }
+}
+
+/**
+ * Suscribe a cambios de lista de dispositivos térmicos (USB + Serial + agente).
+ * @param {(devices:any[])=>void} callback
+ * @returns {()=>void} unsubscribe
+ */
+export function onThermalDevicesChanged(callback) {
+  if (typeof callback !== 'function') return () => {}
+  ensureUsbSerialListeners()
+  thermalDeviceListeners.add(callback)
+  listThermalDevices().then((list) => {
+    try { callback(list) } catch { /* ignore */ }
+  }).catch(() => {})
+  return () => {
+    thermalDeviceListeners.delete(callback)
+    detachUsbSerialListenersIfNeeded()
+  }
+}
+
+export function offThermalDevicesChanged(callback) {
+  thermalDeviceListeners.delete(callback)
+  detachUsbSerialListenersIfNeeded()
+}
+
+// Compatibilidad: alias para hook usePrinterWatcher
+export const subscribeToThermalDevices = onThermalDevicesChanged
 
 /* ---------------- construccion de datos por protocolo ---------------- */
 
@@ -158,22 +300,89 @@ async function downloadData(invoice, payload, protocol) {
   return extension
 }
 
-/* ---------------- conexion USB ---------------- */
+/* ---------------- conexion USB (Parte 4 — fix reclamo interfaz) ---------------- */
 
 async function openAndClaim(device) {
   if (device.opened) return device
-  await device.open()
-  await device.selectConfiguration(1)
   try {
-    await device.claimInterface(0)
-  } catch {
-    try {
-      await device.claimInterface(1)
-    } catch {
-      throw new Error('No se pudo reclamar ninguna interfaz USB. Reinicie la impresora e intente de nuevo.')
+    await device.open()
+  } catch (error) {
+    const name = error?.name || ''
+    if (name === 'SecurityError' || name === 'NetworkError' || /driver|SecurityError|NetworkError/i.test(String(error?.message || ''))) {
+      throw new Error(
+        'Esta impresora tiene el driver de Windows/macOS activo. Use el agente local de impresión (recomendado) o instale un driver WinUSB con Zadig para forzar acceso directo.',
+      )
+    }
+    throw error
+  }
+
+  // Si el dispositivo quedó en estado inconsistente por sesión anterior, intentar forget
+  let shouldTryForget = false
+  try {
+    await device.selectConfiguration(1)
+  } catch (error) {
+    const name = error?.name || ''
+    if (name === 'SecurityError' || name === 'NetworkError' || /SecurityError|NetworkError|configuration/i.test(String(error?.message || ''))) {
+      shouldTryForget = true
+    } else {
+      // No es error de driver, propagar
     }
   }
-  return device
+
+  // Intentar claim interface 0, luego 1, con manejo explícito SecurityError/NetworkError
+  const claimErrors = []
+  for (const iface of [0, 1]) {
+    try {
+      await device.claimInterface(iface)
+      return device
+    } catch (error) {
+      claimErrors.push(error)
+      const name = error?.name || ''
+      const msg = String(error?.message || '')
+      const isDriverError =
+        name === 'SecurityError' ||
+        name === 'NetworkError' ||
+        /SecurityError|NetworkError|Access denied|cannot claim|interface/i.test(msg)
+
+      if (isDriverError) {
+        // Si tenemos forget disponible y no lo hemos intentado, proponerlo para la próxima vez
+        if (device.forget && !shouldTryForget) shouldTryForget = true
+
+        // Si es el último intento, lanzar mensaje honesto
+        if (iface === 1) {
+          // Intentar forget solo si ya fue reclamada por error en sesión anterior y tenemos permiso
+          if (shouldTryForget && typeof device.forget === 'function') {
+            try {
+              // forget requiere gesto de usuario; puede fallar silenciosamente si no hay gesto
+              await device.forget()
+            } catch {
+              /* no se pudo olvidar automáticamente; el usuario debe hacerlo manualmente en chrome://device-log o configuración USB */
+            }
+          }
+          throw new Error(
+            'Esta impresora tiene el driver de Windows/macOS activo. Use el agente local de impresión (recomendado) o instale un driver WinUSB con Zadig para forzar acceso directo.',
+          )
+        }
+        // Probar siguiente interfaz
+        continue
+      }
+      // Otro error no relacionado a driver: probar siguiente interfaz si queda
+      if (iface === 1) throw error
+    }
+  }
+
+  // Si llegamos aquí sin reclamar, lanzar error genérico con contexto de driver
+  const lastErr = claimErrors[claimErrors.length - 1]
+  if (lastErr) {
+    const name = lastErr?.name || ''
+    if (name === 'SecurityError' || name === 'NetworkError') {
+      throw new Error(
+        'Esta impresora tiene el driver de Windows/macOS activo. Use el agente local de impresión (recomendado) o instale un driver WinUSB con Zadig para forzar acceso directo.',
+      )
+    }
+    throw lastErr
+  }
+  throw new Error('No se pudo reclamar ninguna interfaz USB. Reinicie la impresora e intente de nuevo.')
 }
 
 async function sendBytes(device, bytes) {
@@ -263,12 +472,32 @@ function bytesToBase64(bytes) {
   let binary = ''
   const chunkSize = 8192
   for (let index = 0; index < bytes.length; index += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(index, Math.min(index + chunkSize, bytes.length)))
+    const chunk = bytes.subarray(index, Math.min(index + chunkSize, bytes.length))
+    let part = ''
+    for (let i = 0; i < chunk.length; i++) part += String.fromCharCode(chunk[i])
+    binary += part
   }
   return btoa(binary)
 }
 
 async function sendNetworkBytes(bytes, { networkHost, networkPort }) {
+  // Si el agente está conectado, preferir socket TCP crudo 9100 vía agente en vez de WebPRNT HTTP
+  if (printAgentClient.isAgentConnected() && networkHost) {
+    try {
+      // El agente usa type: 'print' con target host/port para raw 9100
+      const res = await printAgentClient.printViaAgent({
+        bytes,
+        protocol: 'escpos',
+        target: { host: networkHost, port: networkPort || 9100 },
+        kind: 'thermal',
+      })
+      if (res && res.ok !== false) return { ok: true, device: `${networkHost}:${networkPort || 9100}` }
+      // Si el agente respondió con error, caemos a WebPRNT como fallback
+    } catch {
+      // fallback a WebPRNT
+    }
+  }
+
   const port = networkPort || 8001
   const url = `http://${networkHost}:${port}/webprnt`
   const body = `data=${encodeURIComponent(bytesToBase64(bytes))}&isRawData=true`
@@ -280,9 +509,9 @@ async function sendNetworkBytes(bytes, { networkHost, networkPort }) {
       signal: AbortSignal.timeout(8000),
     })
     if (response.ok) return { ok: true, device: `${networkHost}:${port}` }
-    return { ok: false, error: `La impresora respondio HTTP ${response.status}. Verifique IP, puerto y soporte WebPRNT.` }
+    return { ok: false, error: `La impresora respondio HTTP ${response.status}. Verifique IP, puerto y soporte WebPRNT. Si es una impresora de red genérica (9100), use el agente local.` }
   } catch (error) {
-    return { ok: false, error: `Sin respuesta de ${networkHost}:${port} (${error.message}). Verifique que la impresora este en red y soporte WebPRNT.` }
+    return { ok: false, error: `Sin respuesta de ${networkHost}:${port} (${error.message}). Verifique que la impresora este en red y soporte WebPRNT. Para impresoras 9100 genéricas (Epson/Xprinter/Zebra), instale el agente local.` }
   }
 }
 
@@ -317,7 +546,7 @@ async function sendBluetoothBytes(bytes, profile = {}) {
       /* probar siguiente servicio */
     }
   }
-  if (!characteristic) throw new Error('No se encontro canal de escritura en la impresora Bluetooth.')
+  if (!characteristic) throw new Error('No se encontro canal de escritura en la impresora Bluetooth. Nota: la mayoría de impresoras térmicas de recibo son Bluetooth Clásico (SPP/RFCOMM), no BLE. Para ellas, empareje en el sistema operativo (crea puerto COM/tty) y use el agente local vía Serial.')
   const chunkSize = 180
   for (let index = 0; index < bytes.length; index += chunkSize) {
     const chunk = bytes.slice(index, Math.min(index + chunkSize, bytes.length))
@@ -331,7 +560,7 @@ async function sendBluetoothBytes(bytes, profile = {}) {
   return { name: device.name || 'Impresora Bluetooth', id: device.id }
 }
 
-/* ---------------- envio segun configuracion ---------------- */
+/* ---------------- envio segun configuracion (Parte 2: agente como canal principal) ---------------- */
 
 function resolveProtocol(profile, fallback) {
   if (profile.manualProtocol && THERMAL_PROTOCOLS.some((item) => item.id === profile.protocol)) return profile.protocol
@@ -339,7 +568,102 @@ function resolveProtocol(profile, fallback) {
   return fallback
 }
 
+async function tryPrintViaAgent({ bytes, profile, protocol }) {
+  if (!printAgentClient.isAgentConnected()) return null
+
+  // Mapear perfil a target del agente
+  const connection = profile.connection || 'auto'
+  let target = {}
+  let kind = 'thermal'
+
+  if (connection === 'network' && profile.networkHost) {
+    target = { host: profile.networkHost, port: profile.networkPort || 9100, type: 'network' }
+  } else if (connection === 'serial') {
+    // Para Bluetooth clásico emparejado, el SO crea un COM; reusamos serial
+    target = { portName: profile.serialPortName || profile.portName || profile.comPort || '', baudRate: profile.baudRate || 9600, type: 'serial' }
+    // Si no hay portName pero hay bluetoothDeviceId, informar que use COM virtual
+    if (!target.portName && profile.bluetoothDeviceId) {
+      return { ok: false, via: 'config', error: 'Bluetooth clásico detectado. Empareje la impresora en Windows/macOS (creará un puerto COM/tty virtual) y seleccione ese puerto en la configuración, o instale el agente y elija el puerto COM correspondiente.' }
+    }
+    if (!target.portName) {
+      // Intentar listar puertos del agente y usar el primero disponible
+      try {
+        const printers = await printAgentClient.listPrintersViaAgent()
+        const serialCandidate = (printers || []).find((p) => p.connection === 'serial' || String(p.portName || '').toUpperCase().startsWith('COM') || String(p.path || '').includes('tty'))
+        if (serialCandidate) target.portName = serialCandidate.portName || serialCandidate.path || serialCandidate.name
+      } catch { /* ignore */ }
+    }
+  } else if (connection === 'usb' || connection === 'auto') {
+    // El agente es la fuente de verdad: en automático solo elegimos una cola
+    // que realmente está instalada en el SO, nunca un nombre inventado o viejo.
+    let printerName = ''
+    try {
+      const printers = await printAgentClient.listPrintersViaAgent()
+      const thermal = (printers || []).filter((p) => p.kind === 'thermal')
+      const requestedName = String(profile.printerName || profile.productName || '').trim().toLowerCase()
+      const selected = requestedName
+        ? thermal.find((p) => String(p.printerName || p.name || '').trim().toLowerCase() === requestedName)
+        : null
+      const automatic = profile.printMode !== 'manual'
+      const candidate = selected || (automatic ? thermal.find((p) => p.isDefault) || thermal[0] : null)
+      printerName = candidate?.printerName || candidate?.name || candidate?.displayName || ''
+      if (candidate && /trifusion\s+pos-?80/i.test(String(candidate.printerName || candidate.name || ''))) {
+        console.debug('[print] Trifusion POS-80 detectada por agente', { kind: candidate.kind, route: 'spooler', printerName })
+      }
+    } catch { /* el agente ya reportará un error o se aplicará el respaldo navegador */ }
+    // En modo manual se conserva el nombre escrito solo si el agente no pudo
+    // listar; el agente validará que la cola exista antes de imprimir.
+    if (!printerName && profile.printMode === 'manual') printerName = profile.printerName || profile.productName || ''
+    if (printerName) target = { printerName, type: 'usb', vendorId: profile.vendorId }
+    else if (profile.vendorId) target = { vendorId: profile.vendorId, type: 'usb' }
+  } else if (connection === 'bluetooth') {
+    // Bluetooth BLE vía WebBluetooth sigue siendo local; para clásico el agente espera serial portName
+    // No intentar agente para BLE puro (WebBluetooth)
+    return null
+  }
+
+  // Si no hay target concreto pero el agente tiene impresoras, intentar igual con bytes crudos (el agente elegirá por defecto)
+  try {
+    const res = await printAgentClient.printViaAgent({ bytes, protocol, target, kind })
+    // printViaAgent ya valida ok/error; si ok, devolver éxito
+    if (res && res.ok !== false) {
+      return { ok: true, via: 'agent', device: res.device || target.printerName || target.host || target.portName || 'Agente', protocol }
+    }
+    // Si el agente respondió ok:false, propagar error honesto
+    return { ok: false, via: 'agent', error: res?.error || 'El agente no pudo imprimir' }
+  } catch (error) {
+    // No romper; dejar que el caller haga fallback a WebUSB/WebSerial/WebPRNT
+    // Si el error es claro de agente (ej. impresora no encontrada), informar
+    const msg = String(error?.message || error)
+    if (/no encontrada|not found|No se pudo/i.test(msg)) {
+      return { ok: false, via: 'agent', error: msg }
+    }
+    return null
+  }
+}
+
 async function routeSend({ bytes, profile }) {
+  // ── Intento principal: agente local (si está conectado) ──
+  const agentAttempt = await tryPrintViaAgent({ bytes, profile, protocol: profile.protocol || 'escpos' })
+  if (agentAttempt) {
+    if (agentAttempt.ok) return agentAttempt
+    // Si el agente respondió con error de configuración claro, retornarlo directamente (no hacer fallback silencioso)
+    if (agentAttempt.via === 'config' || agentAttempt.via === 'agent') {
+      // Si es error de agente pero existe fallback local viable, podríamos intentar fallback;
+      // por ahora retornamos el error del agente para que la UI muestre mensaje honesto,
+      // salvo que el error indique que pruebe fallback
+      if (agentAttempt.error && /Bluetooth clásico/i.test(agentAttempt.error)) return agentAttempt
+      // Para otros casos, si agentAttempt es via:'agent' con error, intentar fallback local como respaldo
+      // (mantener comportamiento existente)
+      if (agentAttempt.via === 'agent' && agentAttempt.error) {
+        // Intentar ruta local como respaldo solo si no es error de validación de target
+        // Dejar caer al siguiente bloque (fallback)
+      } else {
+        return agentAttempt
+      }
+    }
+  }
+
   const connection = profile.connection || 'auto'
   if (connection === 'file') return { ok: false, via: 'file' }
   if (connection === 'network') {
@@ -355,12 +679,24 @@ async function routeSend({ bytes, profile }) {
     return { ok: true, via: 'bluetooth', device: sent.name }
   }
   if (connection === 'serial') {
+    // Si el agente está disponible y hay puerto, ya se intentó arriba; aquí fallback a WebSerial
+    if (printAgentClient.isAgentConnected()) {
+      // El agente ya intentó; si falló, probar WebSerial como último recurso
+    }
     const blob = new Blob([bytes], { type: 'application/octet-stream' })
-    const result = await sendToSerialPort(blob, { baudRate: profile.baudRate || 9600 })
-    return { ok: true, via: 'serial', device: String(result) }
+    try {
+      const result = await sendToSerialPort(blob, { baudRate: profile.baudRate || 9600 })
+      return { ok: true, via: 'serial', device: String(result) }
+    } catch (error) {
+      const msg = String(error?.message || error)
+      if (/no soportado|not supported/i.test(msg)) {
+        return { ok: false, via: 'config', error: 'WebSerial no está disponible en este navegador. Use Chrome/Edge de escritorio o el agente local (que soporta Serial/COM real).' }
+      }
+      throw error
+    }
   }
   if (connection === 'usb' || connection === 'auto') {
-    const remembered = profile.vendorId ? await reconnectUsb(profile) : null
+    const remembered = profile.vendorId ? await reconnectUsb(profile).catch((e) => { throw e }) : null
     if (remembered) {
       await sendBytes(remembered, bytes)
       await closeDevice(remembered)
@@ -377,13 +713,13 @@ async function routeSend({ bytes, profile }) {
       await closeDevice(device)
       return { ok: true, via: 'usb', device: productName, protocol: detected }
     }
-    if (connection === 'usb') return { ok: false, via: 'config', error: 'WebUSB no esta disponible. Use Chrome o Edge.' }
+    if (connection === 'usb') return { ok: false, via: 'config', error: 'WebUSB no esta disponible. Use Chrome o Edge, o el agente local (USB vía driver sin necesidad de WebUSB).' }
     return {
       ok: false,
       via: 'config',
       error: profile.vendorId
-        ? 'La impresora USB no esta conectada. Conectela e intente de nuevo.'
-        : 'No hay impresora configurada. Abra Configuracion y agregue su impresora por USB o Bluetooth.',
+        ? 'La impresora USB no esta conectada. Conectela e intente de nuevo. Si tiene driver instalado y ve error de “driver activo”, use el agente local (recomendado).'
+        : 'No hay impresora configurada. Abra Configuracion y agregue su impresora por USB/Bluetooth, o instale el agente local para detección automática.',
     }
   }
   return { ok: false, via: 'none' }
@@ -411,17 +747,26 @@ export async function printInvoiceThermal({ invoice, company, customer, qrText =
     ticketStyle: profile.ticketStyle || 'classic',
   })
   try {
-    const result = await routeSend({ bytes: await asBytes(payload), profile })
+    const result = await routeSend({ bytes: await asBytes(payload), profile: { ...profile, protocol: useProtocol } })
     if (result.ok) return result
     if (result.via === 'file' || result.via === 'none') {
-      await downloadReceiptPdf(invoice, company, customer, qrText, effectivePaperWidth(profile))
-      return { ok: false, via: 'download', error: `Sin canal de impresión activo; se descargó el recibo en PDF.` }
+      // Profesional: imprimir no puede descargar — ofrecer diálogo navegador donde elige Trifusion POS-80 u otra
+      return { ok: false, via: 'dialog', error: `Sin impresora configurada para impresión directa. Se abrirá el diálogo del sistema: elija su impresora (ej: Trifusion POS-80) y confirme. Puede usar "Ticket navegador" para 80mm o "Carta navegador" para A4.` }
     }
-    if (result.via === 'config') return result
+    // El botón "Imprimir" no debe terminar en una descarga ni dejar al usuario
+    // sin una acción. Si la ruta directa no está disponible, el llamador abre
+    // el diálogo del navegador con la propia factura/ticket como respaldo.
+    if (result.via === 'config' || result.via === 'agent') {
+      return {
+        ok: false,
+        via: 'dialog',
+        error: `${result.error || 'No fue posible usar la impresora configurada.'} Se abrirá el diálogo del sistema con esta factura para que elija la impresora.`,
+      }
+    }
     return result
   } catch (error) {
-    await downloadReceiptPdf(invoice, company, customer, qrText, effectivePaperWidth(profile))
-    return { ok: false, via: 'download', error: `${error.message} Se descargó el recibo en PDF como respaldo.` }
+    // Fallback profesional: diálogo navegador, no descarga automática
+    return { ok: false, via: 'dialog', error: `${error.message} Se abrirá el diálogo del sistema para elegir impresora.` }
   }
 }
 
@@ -431,15 +776,53 @@ export async function printThermalTest({ protocol, paperWidth, profileOverride }
   const useProtocol = resolveProtocol(profile, protocol || 'escpos')
   const payload = buildTestData({ protocol: useProtocol, paperWidth: effectivePaperWidth(profile), accentedText: profile.accentedText === true, ticketStyle: profile.ticketStyle || 'classic' })
   try {
-    const result = await routeSend({ bytes: await asBytes(payload), profile })
+    const result = await routeSend({ bytes: await asBytes(payload), profile: { ...profile, protocol: useProtocol } })
     if (result.ok) return result
-    if (result.via === 'config') return result
-    const doc = await buildTestReceiptPdf({ paperWidth: effectivePaperWidth(profile) })
-    doc.save('prueba-recibo.pdf')
-    return { ok: false, via: 'download', error: `Sin canal de impresión activo; se descargó la prueba en PDF.` }
+    if (result.via === 'config' || result.via === 'agent') return result
+    return { ok: false, via: 'dialog', error: `Sin canal activo; se abrirá el diálogo del sistema para prueba. Elija Trifusion POS-80 y confirme.` }
   } catch (error) {
-    const doc = await buildTestReceiptPdf({ paperWidth: effectivePaperWidth(profile) })
-    doc.save('prueba-recibo.pdf')
-    return { ok: false, via: 'download', error: `${error.message} Se descargó la prueba en PDF como respaldo.` }
+    const msg = String(error?.message || '')
+    if (/driver de Windows|agente local|WinUSB|Zadig/i.test(msg)) {
+      return { ok: false, via: 'config', error: msg }
+    }
+    return { ok: false, via: 'dialog', error: `${error.message} Se abrirá el diálogo del sistema para prueba.` }
+  }
+}
+
+/**
+ * Impresión directa desde el navegador (fallback honesto, siempre muestra diálogo del sistema).
+ * Usa el PDF de recibo (80mm) o factura limpia y lo manda a un iframe con autoPrint.
+ * Útil para impresoras virtuales como "Trifusion POS-80" cuando el agente no está o el usuario prefiere diálogo.
+ */
+export async function printThermalViaBrowser({ invoice, company, customer, qrText = '' } = {}) {
+  const profile = getThermalProfile()
+  const paperWidth = effectivePaperWidth(profile)
+  try {
+    // Ticket navegador y descarga usan exactamente el mismo PDF térmico. Así
+    // se conserva el diseño fiscal completo de la factura, incluido QR, notas,
+    // garantía, artículos y totales; solo cambia la salida (imprimir vs guardar).
+    const pdf = await buildReceiptPdf({ invoice, company, customer, qrText, paperWidth })
+    pdf.autoPrint()
+    const url = URL.createObjectURL(pdf.output('blob'))
+    const frame = document.createElement('iframe')
+    frame.setAttribute('title', 'Ticket de factura')
+    frame.style.position = 'fixed'
+    frame.style.width = '1px'
+    frame.style.height = '1px'
+    frame.style.right = '0'
+    frame.style.bottom = '0'
+    frame.style.opacity = '0'
+    frame.style.pointerEvents = 'none'
+    document.body.appendChild(frame)
+    frame.onload = () => {
+      // Solo imprimir el PDF cargado dentro del iframe. No usar window.print()
+      // de la aplicación, porque eso imprimía la ruta /facturacion vacía.
+      try { frame.contentWindow?.focus(); frame.contentWindow?.print() } catch { /* el PDF conserva la acción autoPrint */ }
+      window.setTimeout(() => { frame.remove(); URL.revokeObjectURL(url) }, 60000)
+    }
+    frame.src = url
+    return { ok: false, via: 'dialog', error: 'Impresión directa desde navegador: se abrirá el diálogo del sistema para elegir impresora (ej: Trifusion POS-80). Seleccione su impresora virtual y confirme.', silent: false }
+  } catch (error) {
+    return { ok: false, via: 'config', error: `No se pudo preparar el ticket para imprimir. ${String(error.message || '')}`, silent: false }
   }
 }

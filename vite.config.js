@@ -2,15 +2,30 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import process from 'node:process'
 
-const appBase = process.env.npm_lifecycle_event === 'build:github' ? '/sistema-de-facturacion/' : '/'
+const appBase = (process.env.npm_lifecycle_event === 'build:github' ? '/sistema-de-facturacion/' : '/')
 
 export default defineConfig({
   base: appBase,
   server: {
     port: 5173,
     strictPort: false,
+  },
+  build: {
+    chunkSizeWarningLimit: 650,
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) return 'vendor'
+          if (id.includes('node_modules/zustand')) return 'store'
+          if (id.includes('node_modules/firebase')) return 'firebase'
+          if (id.includes('node_modules/framer-motion') || id.includes('node_modules/lucide-react') || id.includes('node_modules/motion-dom')) return 'ui'
+          if (id.includes('node_modules/chart.js') || id.includes('node_modules/react-chartjs-2')) return 'chart'
+          if (id.includes('node_modules/jspdf') || id.includes('node_modules/html2canvas') || id.includes('node_modules/qrcode')) return 'pdf'
+        },
+      },
+    },
   },
   plugins: [
     react(),
@@ -20,7 +35,7 @@ export default defineConfig({
       devOptions: {
         enabled: false,
       },
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'trifusion-logo.png', 'sello-real.png'],
       manifest: {
         name: 'Trifusion ERP Fiscal',
         short_name: 'Trifusion ERP',
@@ -37,6 +52,15 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/api\//],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/firestore\.googleapis\.com\/.*/i,
+            handler: 'NetworkFirst',
+            options: { cacheName: 'firestore-cache', networkTimeoutSeconds: 5 },
+          },
+        ],
       },
     }),
   ],

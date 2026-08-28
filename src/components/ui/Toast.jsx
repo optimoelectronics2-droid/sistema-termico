@@ -17,11 +17,13 @@ export function ToastViewport() {
   const toasts = useToast((state) => state.toasts)
   const remove = useToast((state) => state.remove)
   return (
-    <div className="fixed bottom-4 right-4 z-[70] flex w-[min(420px,calc(100vw-32px))] flex-col gap-2">
+    <div className="fixed bottom-4 right-4 z-[150] flex w-[min(420px,calc(100vw-32px))] flex-col gap-2" role="region" aria-label="Notificaciones">
       {toasts.map((toast) => {
         const Icon = icons[toast.type] || CheckCircle2
+        const role = toast.type === 'error' ? 'alert' : 'status'
+        const live = toast.type === 'error' ? 'assertive' : 'polite'
         return (
-          <div key={toast.id} className={`rounded-lg border p-3 shadow-2xl backdrop-blur-xl ${styles[toast.type]}`}>
+          <div key={toast.id} role={role} aria-live={live} aria-atomic="true" className={`rounded-lg border p-3 shadow-2xl backdrop-blur-xl ${styles[toast.type]}`}>
             <div className="flex items-start gap-3">
               <Icon size={19} className="mt-0.5 shrink-0" />
               <div className="min-w-0 flex-1">

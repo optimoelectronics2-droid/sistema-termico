@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { Button } from './Button'
+import { lockBodyScroll, unlockBodyScroll } from '../../hooks/useLockBodyScroll'
 
 export function Modal({ open, title, description, children, onClose, size = 'lg', footer }) {
   const wrapperRef = useRef(null)
@@ -9,10 +10,10 @@ export function Modal({ open, title, description, children, onClose, size = 'lg'
   useEffect(() => {
     if (!open) return
     previousFocus.current = document.activeElement
-    document.body.style.overflow = 'hidden'
+    lockBodyScroll()
     return () => {
-      document.body.style.overflow = ''
-      previousFocus.current?.focus()
+      unlockBodyScroll()
+      try { previousFocus.current?.focus() } catch { /* ignore */ }
     }
   }, [open])
 
@@ -29,10 +30,11 @@ export function Modal({ open, title, description, children, onClose, size = 'lg'
     if (!open) return
     const wrapper = wrapperRef.current
     if (!wrapper) return
-    const focusable = wrapper.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+    const focusable = wrapper.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]):not([disabled]), [contenteditable="true"]')
     const first = focusable[0]
     const last = focusable[focusable.length - 1]
-    first?.focus()
+    // Only focus first if no element already focused inside
+    if (!wrapper.contains(document.activeElement)) first?.focus()
     const handler = (event) => {
       if (event.key !== 'Tab') return
       if (event.shiftKey) {

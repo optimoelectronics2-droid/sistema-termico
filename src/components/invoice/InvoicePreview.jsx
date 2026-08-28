@@ -1,6 +1,6 @@
 import QRCode from 'qrcode'
 import { FileDown, Mail, MessageCircle, Printer } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { currency, formatDate } from '../../lib/formatters'
 import { ncfTypes } from '../../lib/taxEngine'
 import { Button } from '../ui/Button'
@@ -30,6 +30,8 @@ export function InvoicePreview({ invoice, company, customer, format = 'letter', 
   const [qr, setQr] = useState('')
   const autoPrintRef = useRef('')
   const autoDownloadRef = useRef('')
+  const reactId = useId()
+  const previewId = `invoice-preview-${reactId.replace(/:/g, '-')}`
   const verification = useMemo(() => buildVerificationData(invoice, company), [company, invoice])
   useEffect(() => {
     if (!invoice) return
@@ -70,11 +72,13 @@ export function InvoicePreview({ invoice, company, customer, format = 'letter', 
     return () => window.clearTimeout(timer)
   }, [autoDownload, company, customer, invoice, onAutoDownloadDone, qr])
   if (!invoice) return null
-  if (format === 'ticket') return <TicketInvoice invoice={invoice} company={company} customer={customer} qr={qr} title={title} showActions={showActions} />
-  return <LetterInvoice invoice={invoice} company={company} customer={customer} qr={qr} compact={format === 'half'} title={title} showActions={showActions} />
+  if (format === 'ticket') return <TicketInvoice invoice={invoice} company={company} customer={customer} qr={qr} title={title} showActions={showActions} previewId={`${previewId}-ticket`} />
+  return <LetterInvoice invoice={invoice} company={company} customer={customer} qr={qr} compact={format === 'half'} title={title} showActions={showActions} previewId={previewId} />
 }
 
-function LetterInvoice({ invoice, company, customer, qr, compact, title, showActions }) {
+function LetterInvoice({ invoice, company, customer, qr, compact, title, showActions, previewId }) {
+  const fallbackId = useId()
+  const resolvedPreviewId = previewId || `invoice-preview-${fallbackId.replace(/:/g, '-')}`
   const invoiceNumber = displayInvoiceNumber(invoice)
   const fiscalLabel = fiscalDocumentLabel(invoice)
   const fiscal = isFiscalInvoice(invoice)
@@ -84,7 +88,7 @@ function LetterInvoice({ invoice, company, customer, qr, compact, title, showAct
   return (
     <div className="space-y-3">
       {showActions ? <Actions invoice={invoice} customer={customer} company={company} /> : null}
-      <div id="invoice-preview" className={`invoice-paper relative mx-auto overflow-hidden rounded-sm p-8 text-[12.5px] leading-relaxed ${compact ? 'max-w-[720px]' : 'max-w-[816px]'}`}>
+      <div id={resolvedPreviewId} data-invoice-preview="letter" className={`invoice-paper relative mx-auto overflow-hidden rounded-sm p-8 text-[12.5px] leading-relaxed ${compact ? 'max-w-[720px]' : 'max-w-[816px]'}`}>
         <Header company={company} title={title} fiscal={fiscal} />
         <section className="mt-5 grid grid-cols-2 gap-5 border-y border-slate-300 py-4">
           <div>
@@ -168,13 +172,15 @@ function LetterInvoice({ invoice, company, customer, qr, compact, title, showAct
   )
 }
 
-function TicketInvoice({ invoice, company, customer, qr, title, showActions }) {
+function TicketInvoice({ invoice, company, customer, qr, title, showActions, previewId }) {
+  const fallbackId = useId()
+  const resolvedPreviewId = previewId || `invoice-preview-ticket-${fallbackId.replace(/:/g, '-')}`
   const invoiceNumber = displayInvoiceNumber(invoice)
   const fiscal = isFiscalInvoice(invoice)
   return (
     <div className="space-y-3">
       {showActions ? <Actions invoice={invoice} customer={customer} company={company} /> : null}
-      <div id="invoice-preview-ticket" className="invoice-paper relative mx-auto w-[302px] overflow-hidden rounded-sm p-3 text-center font-mono text-[11px]">
+      <div id={resolvedPreviewId} data-invoice-preview="ticket" className="invoice-paper relative mx-auto w-[302px] overflow-hidden rounded-sm p-3 text-center font-mono text-[11px]">
         <p className="text-lg font-black">{company?.name || 'Empresa'}</p>
         {fiscal && company?.rnc ? <p>RNC: {company.rnc}</p> : null}
         {company?.address ? <p>{company.address}</p> : null}
@@ -341,7 +347,8 @@ function buildVerificationData(invoice, company) {
   }
 }
 
-function buildQrPayload(invoice, verification) {
+// eslint-disable-next-line no-unused-vars
+function buildQrPayload(invoice, _verification) {
   const dateStr = (() => { try { const d = invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate; return d ? new Date(d).toLocaleDateString('es-DO') : '' } catch { return '' } })()
   const lines = [
     `DESPACHADA`,

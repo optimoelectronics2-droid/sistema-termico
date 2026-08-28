@@ -55,25 +55,43 @@ export function POS() {
       .map((entry) => entry.customer)
   }, [customerId, customerQuery, customers])
 
+  const hasAttemptedOpenRef = useRef(false)
+  const toastRef = useRef(toast)
+  useEffect(() => { toastRef.current = toast }, [toast])
   useEffect(() => {
-    if (cashRegister?.status !== 'open') {
+    let t
+    if (cashRegister?.status !== 'open' && !hasAttemptedOpenRef.current) {
+      hasAttemptedOpenRef.current = true
       try {
         openCashRegister(0)
       } catch (error) {
-        toast.error(error.message)
+        toastRef.current.error(error.message)
       }
+      t = window.setTimeout(() => { hasAttemptedOpenRef.current = false }, 8000)
     }
-  }, [cashRegister?.status, openCashRegister, toast])
+    if (cashRegister?.status === 'open') hasAttemptedOpenRef.current = false
+    return () => { if (t) window.clearTimeout(t) }
+  }, [cashRegister?.status, openCashRegister])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const payload = { mode, ncfType, customerId, customerQuery, paymentMethod, cart, savedAt: nowIso() }
-      localStorage.setItem(POS_DRAFT_KEY, JSON.stringify(payload))
-      setDraftStatus(cart.length ? 'Autoguardado ahora' : 'Listo')
+      try {
+        const payload = { mode, ncfType, customerId, customerQuery, paymentMethod, cart, savedAt: nowIso() }
+        localStorage.setItem(POS_DRAFT_KEY, JSON.stringify(payload))
+        setDraftStatus(cart.length ? 'Autoguardado ahora' : 'Listo')
+      } catch {
+        setDraftStatus('Sin espacio para autoguardado')
+      }
     }, 350)
     return () => window.clearTimeout(timer)
   }, [cart, customerId, customerQuery, mode, ncfType, paymentMethod])
 
+  const cartRef = useRef(cart)
+  const sellRef = useRef(() => {})
+  const clearRef = useRef(() => {})
+  useEffect(() => { cartRef.current = cart }, [cart])
+  useEffect(() => { sellRef.current = sell }, [sell])
+  useEffect(() => { clearRef.current = clearCurrentSale }, [clearCurrentSale])
   useEffect(() => {
     const handler = (event) => {
       const key = event.key.toLowerCase()
@@ -83,16 +101,16 @@ export function POS() {
       }
       if (event.key === 'F4') {
         event.preventDefault()
-        if (cart.length) sell()
+        if (cartRef.current.length) sellRef.current()
       }
       if ((event.ctrlKey || event.metaKey) && key === 'backspace') {
         event.preventDefault()
-        clearCurrentSale()
+        clearRef.current()
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  })
+  }, [])
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -109,18 +127,18 @@ export function POS() {
       toast.error(`${product.name} no tiene stock disponible.`)
       return
     }
-    const usedSerials = new Set(cart.flatMap((item) => item.serials || []))
-    const serial = product.requiresSerial ? (product.serials || []).find((item) => !usedSerials.has(item)) : ''
-    if (product.requiresSerial && !serial) {
-      toast.error(`${product.name} requiere serial/IMEI disponible.`)
-      return
-    }
     setCart((items) => {
+      const usedSerials = new Set(items.flatMap((item) => item.serials || []))
+      const serial = product.requiresSerial ? (product.serials || []).find((item) => !usedSerials.has(item)) : ''
+      if (product.requiresSerial && !serial) {
+        queueMicrotask(() => toast.error(`${product.name} requiere serial/IMEI disponible.`))
+        return items
+      }
       const existing = items.find((item) => item.productId === product.id && !product.requiresSerial)
       if (existing) {
         const nextQty = existing.quantity + 1
         if (product.category !== 'Servicios' && nextQty > Number(product.stock || 0)) {
-          toast.error(`${product.name} no tiene stock suficiente.`)
+          queueMicrotask(() => toast.error(`${product.name} no tiene stock suficiente.`))
           return items
         }
         return items.map((item) => (item.productId === product.id ? { ...item, quantity: nextQty } : item))
@@ -345,13 +363,13 @@ export function POS() {
                 <span className="font-bold">{currency.format(lineTotal(item, mode))}</span>
               </div>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <label>
+                <label htmlFor={`pos-item-price-${item.productId}-${item.serials?.join('-') || 'bulk'}`}>
                   <span className="label-dark">Precio</span>
-                  <input type="number" min="0" step="0.01" id={"pos-item-price-" + index} name={"pos-item-price-" + index} value={item.price} onChange={(event) => updateCartLine(item, { price: Number(event.target.value) })} className="input-dark py-2"  autoComplete="off" />
+                  <input type="number" min="0" step="0.01" id={`pos-item-price-${item.productId}-${item.serials?.join('-') || 'bulk'}`} name={`pos-item-price-${item.productId}`} value={item.price} onChange={(event) => updateCartLine(item, { price: Number(event.target.value) })} className="input-dark py-2"  autoComplete="off" />
                 </label>
-                <label>
+                <label htmlFor={`pos-item-discount-${item.productId}-${item.serials?.join('-') || 'bulk'}`}>
                   <span className="label-dark">Rebaja %</span>
-                  <input type="number" min="0" max="10" step="0.01" id={"pos-item-discount-" + index} name={"pos-item-discount-" + index} value={item.discount || 0} onChange={(event) => updateCartLine(item, { discount: Math.min(Math.max(Number(event.target.value), 0), 10) })} className="input-dark py-2"  autoComplete="off" />
+                  <input type="number" min="0" max="10" step="0.01" id={`pos-item-discount-${item.productId}-${item.serials?.join('-') || 'bulk'}`} name={`pos-item-discount-${item.productId}`} value={item.discount || 0} onChange={(event) => updateCartLine(item, { discount: Math.min(Math.max(Number(event.target.value), 0), 10) })} className="input-dark py-2"  autoComplete="off" />
                 </label>
               </div>
             </div>
@@ -452,7 +470,13 @@ function levenshtein(a, b) {
 
 function readPosDraft() {
   try {
-    return JSON.parse(localStorage.getItem(POS_DRAFT_KEY) || 'null')
+    const raw = localStorage.getItem(POS_DRAFT_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    if (parsed.cart && !Array.isArray(parsed.cart)) return null
+    if (parsed.mode && !['taxed', 'no_tax', 'mixed'].includes(parsed.mode) && !Object.values(invoiceModes).includes(parsed.mode)) return null
+    return parsed
   } catch {
     return null
   }

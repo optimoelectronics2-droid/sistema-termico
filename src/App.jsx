@@ -42,21 +42,19 @@ export default function App() {
   const syncStatus = useERPStore((state) => state.syncStatus)
   const syncError = useERPStore((state) => state.syncError)
   const [authState, setAuthState] = useState({ loading: true, user: null })
-  useEffect(() => onAuthStateChanged(auth, (user) => setAuthState({ loading: false, user })), [])
-  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/verify')) {
-    return (
-      <>
-        <VerifyInvoice />
-        <ToastViewport />
-      </>
-    )
-  }
   useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => setAuthState({ loading: false, user }))
+    return () => unsub()
+  }, [])
+  const isVerifyRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/verify')
+  useEffect(() => {
+    if (isVerifyRoute) return undefined
     if (authState.loading) return undefined
     if (authState.user) bootstrapTenantForUser(authState.user)
     return startErpRealtimeSync(authState.user)
-  }, [authState.loading, authState.user, bootstrapTenantForUser])
+  }, [authState.loading, authState.user, bootstrapTenantForUser, isVerifyRoute])
   useEffect(() => {
+    if (isVerifyRoute) return undefined
     const handler = (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
@@ -65,7 +63,15 @@ export default function App() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [setCommandOpen])
+  }, [setCommandOpen, isVerifyRoute])
+  if (isVerifyRoute) {
+    return (
+      <>
+        <VerifyInvoice />
+        <ToastViewport />
+      </>
+    )
+  }
 
   if (authState.loading) return <div className="grid min-h-screen place-items-center bg-[#0A0A0F] text-white">Cargando sesion...</div>
   if (!authState.user) return <><AuthPage /><ToastViewport /></>

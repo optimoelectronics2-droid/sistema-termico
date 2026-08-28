@@ -1,4 +1,4 @@
-import { useDeferredValue, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 export function Autocomplete({
@@ -20,6 +20,7 @@ export function Autocomplete({
   const [focused, setFocused] = useState(false)
   const [menuRect, setMenuRect] = useState(null)
   const inputRef = useRef(null)
+  const blurTimerRef = useRef(null)
   const deferredQuery = useDeferredValue(query)
   const selectedLabel = value ? getLabel(value) : ''
   const filtered = useMemo(() => {
@@ -54,7 +55,17 @@ export function Autocomplete({
     }
   }, [focused])
 
+  useEffect(() => {
+    return () => {
+      if (blurTimerRef.current) window.clearTimeout(blurTimerRef.current)
+    }
+  }, [])
+
   function closeMenu() {
+    if (blurTimerRef.current) {
+      window.clearTimeout(blurTimerRef.current)
+      blurTimerRef.current = null
+    }
     setFocused(false)
     setQuery('')
   }
@@ -68,10 +79,17 @@ export function Autocomplete({
         disabled={disabled}
         value={focused ? query : selectedLabel}
         onFocus={() => {
+          if (blurTimerRef.current) {
+            window.clearTimeout(blurTimerRef.current)
+            blurTimerRef.current = null
+          }
           setFocused(true)
           setQuery('')
         }}
-        onBlur={() => window.setTimeout(closeMenu, 120)}
+        onBlur={() => {
+          if (blurTimerRef.current) window.clearTimeout(blurTimerRef.current)
+          blurTimerRef.current = window.setTimeout(closeMenu, 120)
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
             event.preventDefault()

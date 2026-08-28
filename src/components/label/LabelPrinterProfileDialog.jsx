@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { DPI_VALUES, createPrinterProfile, createCalibrationLabel } from '../../lib/labelEngine.js'
 import { renderDesign, downloadOutput, createLabelPdfAsync } from '../../lib/labelOutput.js'
 import { detectProtocolFromVendor, sendToUsbPrinter, sendToSerialPort, getBaudRates } from '../../services/barcodeLabelService.js'
+import * as printAgentClient from '../../services/printAgentClient.js'
 
 const BRANDS = ['Zebra', 'Brother QL', 'Dymo LabelWriter', 'Epson TM', 'Bixolon', 'Citizen', 'Honeywell', 'SATO', 'Star Micronics', 'TSC', 'Xprinter', 'Rongta', 'HP', 'Canon', 'Generica/Otra']
 
@@ -35,6 +36,17 @@ export default function LabelPrinterProfileDialog({ design, profiles: initialPro
   const [printerIp, setPrinterIp] = useState('')
   const [printerPort, setPrinterPort] = useState(9100)
   const [connectionStatus, setConnectionStatus] = useState('')
+  const [agentPrinters, setAgentPrinters] = useState([])
+  const [agentConnected, setAgentConnected] = useState(() => printAgentClient.isAgentConnected())
+
+  useEffect(() => {
+    const off = printAgentClient.onPrinterListChanged((list) => setAgentPrinters(Array.isArray(list) ? list : []))
+    const offS = printAgentClient.onStatusChange((ok) => setAgentConnected(ok))
+    printAgentClient.ensureAgentConnection()
+    // initial fetch
+    printAgentClient.listPrintersViaAgent().then(setAgentPrinters).catch(() => {})
+    return () => { off?.(); offS?.() }
+  }, [])
 
   const activeProfile = profiles.find(p => p.id === selectedId) || profile
 
@@ -51,7 +63,9 @@ export default function LabelPrinterProfileDialog({ design, profiles: initialPro
   }
 
   function duplicateProfile() {
-    const p = createPrinterProfile({ name: activeProfile.name + ' (copia)', protocol: activeProfile.protocol, dpi: activeProfile.dpi, calibration: { ...activeProfile.calibration }, brand: activeProfile.brand, model: activeProfile.model })
+    const p = createPrinterProfile({ name: activeProfile.name + ' (copia)', protocol: activeProfile.protocol, dpi: activeProfile.dpi, calibration: { ...activeProfile.calibration }, brand: activeProfile.brand, model: activeProfile.model, printerName: activeProfile.printerName || '' })
+    // preserve printerName manually (createPrinterProfile may not include it yet)
+    p.printerName = activeProfile.printerName || ''
     setProfiles(prev => [...prev, p])
     setSelectedId(p.id); setProfile(p)
   }
@@ -64,16 +78,66 @@ export default function LabelPrinterProfileDialog({ design, profiles: initialPro
 
   async function handleTestPrint() {
     setConnectionStatus('')
+    const manualName = String(activeProfile.printerName || '').trim()
+    // Intento agente silencioso si hay nombre manual y agente conectado (ej: Trifusion POS-80 virtual)
+    if (manualName && printAgentClient.isAgentConnected()) {
+      try {
+        if (activeProfile.protocol === 'pdf' || activeProfile.protocol === 'png') {
+          const calLabel = createCalibrationLabel()
+          const doc = await createLabelPdfAsync(calLabel, activeProfile.calibration, 1)
+          const blob = doc.output('blob')
+          const buf = await blob.arrayBuffer()
+          const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)))
+          await printAgentClient.printPdfViaAgent({ pdf: b64, printerName: manualName, copies: 1 })
+          setConnectionStatus(`Etiqueta enviada silenciosa a "${manualName}" vía agente (sin diálogo).`)
+          return
+        } else {
+          const result = renderDesign(design || createCalibrationLabel(), activeProfile.protocol === 'escpos' ? 'escpos' : 'zpl', { ...activeProfile.calibration, dpi: activeProfile.dpi })
+          let bytes
+          if (result.type === 'string' || typeof result.data === 'string') bytes = new TextEncoder().encode(String(result.data))
+          else if (result.data instanceof Blob) bytes = new Uint8Array(await result.data.arrayBuffer())
+          else bytes = result.data
+          // printViaAgent acepta bytes y se encarga de codificarlos una sola vez.
+          // Pasar base64 aquí lo codificaba de nuevo y producía una etiqueta corrupta.
+          await printAgentClient.printViaAgent({ bytes, protocol: activeProfile.protocol === 'escpos' ? 'escpos' : 'zpl', target: { printerName: manualName }, kind: 'thermal' })
+          setConnectionStatus(`Etiqueta enviada silenciosa a "${manualName}" vía agente.`)
+          return
+        }
+      } catch (err) {
+        setConnectionStatus(`Agente falló: ${err.message}. Se usará fallback navegador/descarga.`)
+      }
+    }
+
     if (activeProfile.protocol === 'pdf') {
       if (!design) { setConnectionStatus('No hay diseno para imprimir'); return }
       try {
         const calLabel = createCalibrationLabel()
         const doc = await createLabelPdfAsync(calLabel, activeProfile.calibration, 1)
+        // Si hay impresora manual pero sin agente, abrir diálogo navegador directamente
+        if (manualName) {
+          doc.autoPrint()
+          const blob = doc.output('blob')
+          const url = URL.createObjectURL(blob)
+          const frame = document.createElement('iframe')
+          frame.style.position = 'fixed'; frame.style.width='0'; frame.style.height='0'; frame.style.border='0'
+          frame.src = url
+          document.body.appendChild(frame)
+          frame.onload = () => { try{ frame.contentWindow?.focus(); frame.contentWindow?.print() } catch{ window.print() } ; setTimeout(()=>{ frame.remove(); URL.revokeObjectURL(url)},4000)}
+          setConnectionStatus(`Diálogo del sistema abierto: elija "${manualName}" (ej: Trifusion POS-80) y confirme.`)
+          return
+        }
         doc.save('test-calibracion.pdf')
-        setConnectionStatus('PDF de calibracion descargado. Imprimirlo en la impresora para verificar.')
+        setConnectionStatus('PDF de calibracion descargado. Imprimirlo en la impresora para verificar. Con agente o manual, se puede imprimir directo sin diálogo.')
       } catch (err) { setConnectionStatus('Error: ' + err.message) }
     } else if (activeProfile.protocol === 'zpl' || activeProfile.protocol === 'escpos') {
       const result = renderDesign(design || createCalibrationLabel(), activeProfile.protocol === 'escpos' ? 'escpos' : 'zpl', { ...activeProfile.calibration, dpi: activeProfile.dpi })
+      if (manualName && !printAgentClient.isAgentConnected()) {
+        // Sin agente, ofrecer descarga + instrucción navegador: el usuario puede abrir el .prn/.zpl y arrastrarlo a la impresora virtual o usar diálogo
+        const ext = activeProfile.protocol === 'escpos' ? 'prn' : 'zpl'
+        downloadOutput(result.data, `test-label.${ext}`, result.type)
+        setConnectionStatus(`Archivo .${ext} descargado. Para Trifusion POS-80 virtual, arrastre el archivo a la impresora o use "PDF Navegador" para diálogo directo.`)
+        return
+      }
       const ext = activeProfile.protocol === 'escpos' ? 'prn' : 'zpl'
       downloadOutput(result.data, `test-label.${ext}`, result.type)
       setConnectionStatus(`Archivo .${ext} descargado`)
@@ -174,6 +238,18 @@ export default function LabelPrinterProfileDialog({ design, profiles: initialPro
               className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1.5 text-white" autoComplete="off" name="profile-dpi">
               {DPI_VALUES.map(d => <option key={d} value={d}>{d} DPI{d === 203 ? ' (estandar etiquetas)' : d === 300 ? ' (alta calidad)' : ' (ultra alta)'}</option>)}
             </select>
+          </label>
+
+          <label className="block">
+            <span className="text-white/50">Impresora del sistema (manual) {agentConnected ? '· agente conectado ✓' : '· sin agente → usará diálogo navegador'}</span>
+            <input id="profile-printerName" value={activeProfile.printerName || ''} onChange={e => updateProfile({ printerName: e.target.value })} placeholder="Ej: Trifusion POS-80" className="mt-1 w-full rounded border border-white/20 bg-slate-700 px-2 py-1.5 text-white placeholder:text-white/30" autoComplete="off" name="profile-printerName" />
+            <p className="mt-1 text-xs text-white/40">Nombre exacto como en Windows (Panel de impresoras). Para virtuales: <b>Trifusion POS-80</b>, <b>POS80</b> o <b>80mm Thermal Printer</b>. {agentConnected ? 'Con agente imprime silencioso.' : 'Sin agente abrirá el diálogo del sistema (elige la impresora y confirma).'}</p>
+            {agentPrinters.length > 0 && (
+              <select value={activeProfile.printerName || ''} onChange={e => updateProfile({ printerName: e.target.value })} className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-2 py-1 text-white" autoComplete="off">
+                <option value="">— elegir de las detectadas ({agentPrinters.length}) —</option>
+                {agentPrinters.map((p) => <option key={p.printerName || p.name} value={p.printerName || p.name}>{p.displayName || p.name} — {p.kind} {p.portName ? `· ${p.portName}` : ''}</option>)}
+              </select>
+            )}
           </label>
         </div>
 
