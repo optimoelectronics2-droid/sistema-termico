@@ -1,6 +1,7 @@
 [build]
   command = "npm run build"
   publish = "dist"
+  ignore = "git diff --quiet HEAD^ HEAD -- . ':!README.md' ':!docs/' ':!CHANGELOG.md' ':!*.md'"
 
 [build.environment]
   NODE_VERSION = "20"
