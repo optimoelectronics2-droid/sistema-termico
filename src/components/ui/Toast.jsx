@@ -1,14 +1,16 @@
-import { AlertTriangle, CheckCircle2, X, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Info, X, XCircle } from 'lucide-react'
 import { useToast } from '../../hooks/useToast'
 
 const styles = {
   success: 'border-emerald-400/30 bg-emerald-500/15 text-emerald-100',
+  info: 'border-sky-400/30 bg-sky-500/15 text-sky-100',
   warning: 'border-amber-400/30 bg-amber-500/15 text-amber-100',
   error: 'border-red-400/30 bg-red-500/15 text-red-100',
 }
 
 const icons = {
   success: CheckCircle2,
+  info: Info,
   warning: AlertTriangle,
   error: XCircle,
 }

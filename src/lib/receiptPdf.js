@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf'
 import QRCode from 'qrcode'
+import { ticketWarrantyBlocks } from './invoiceThermal'
 
 const money = new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP' })
 const num = (v) => money.format(v || 0)
@@ -33,16 +34,39 @@ function fileNamePart(invoice) {
   return String(displayInvoiceNumber(invoice)).replace(/[^a-zA-Z0-9-_]/g, '_') || 'factura'
 }
 
+async function fetchImageAsDataUrl(url) {
+  const res = await fetch(url, { mode: 'cors' })
+  if (!res.ok) return null
+  const blob = await res.blob()
+  if (!blob.type.startsWith('image/')) return null
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => resolve(null)
+    reader.readAsDataURL(blob)
+  })
+}
+
+function getImageDimensions(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve({ width: img.naturalWidth || 0, height: img.naturalHeight || 0 })
+    img.onerror = reject
+    img.src = dataUrl
+  })
+}
+
 export async function buildReceiptPdf({ invoice, company, customer, qrText = '', paperWidth = '80' } = {}) {
   const width = Math.max(40, Math.min(150, Number(paperWidth) || 80))
   const items = invoice?.items || []
   const hasQr = Boolean(qrText)
-  const hasWarranty = Boolean(company?.warrantyText)
+  // La garantia/devoluciones siempre se imprimen (texto por defecto si la empresa no define uno).
+  // Dos parrafos en negrita: ~11 lineas + 2 titulos en papel 80 mm.
+  const warrantyHeight = 52
   // Estimate height: base 70 + header 25 + factura 30 + cliente 25 + productos 12*items + totales 40 + qr 40 + warranty 20 + footer 20
   const base = 70
   const itemsHeight = items.length * 12 + 10
   const qrHeight = hasQr ? 45 : 0
-  const warrantyHeight = hasWarranty ? 18 : 0
   const estimated = base + itemsHeight + qrHeight + warrantyHeight + 60
   const height = Math.max(120, Math.min(600, estimated))
 
@@ -51,12 +75,13 @@ export async function buildReceiptPdf({ invoice, company, customer, qrText = '',
   const contentW = width - M * 2
   let y = 6
 
+  // Termica = solo negro puro. Grises/azules salen punteados y borrosos en 203 dpi.
   const COLORS = {
-    primary: [15, 23, 42],
-    accent: [37, 99, 235],
-    muted: [100, 116, 139],
-    light: [241, 245, 249],
-    dark: [15, 23, 42],
+    primary: [0, 0, 0],
+    accent: [0, 0, 0],
+    muted: [0, 0, 0],
+    light: [255, 255, 255],
+    dark: [0, 0, 0],
   }
 
   function textCenter(str, size = 8, bold = false, color = COLORS.dark) {
@@ -123,15 +148,34 @@ export async function buildReceiptPdf({ invoice, company, customer, qrText = '',
     y += h + padY
   }
 
-  // Header
-  textCenter(sanitize(company?.name) || 'EMPRESA', 13, true, COLORS.primary)
+  // Header — logo de la tienda centrado en su propia franja, con su aspecto
+  // real (sin deformar) y separado del nombre para que no se encimen.
+  if (company?.logoUrl) {
+    try {
+      const dataUrl = await fetchImageAsDataUrl(company.logoUrl)
+      if (dataUrl) {
+        const dims = await getImageDimensions(dataUrl).catch(() => null)
+        const maxW = Math.min(38, contentW * 0.7)
+        const maxH = 18
+        let logoW = maxW
+        let logoH = 12
+        if (dims && dims.width > 0 && dims.height > 0) {
+          logoH = Math.min(maxH, Math.max(8, maxW * (dims.height / dims.width)))
+          logoW = Math.min(maxW, logoH / (dims.height / dims.width))
+        }
+        doc.addImage(dataUrl, 'PNG', (width - logoW) / 2, y, logoW, logoH, undefined, 'FAST')
+        y += logoH + 3
+      }
+    } catch { /* sin logo: el nombre en negrita sigue identificando la tienda */ }
+  }
+  textCenter(sanitize(company?.name) || 'EMPRESA', 14, true, COLORS.primary)
   y += 1
   if (isFiscalInvoice(invoice) && company?.rnc) textCenter(`RNC: ${company.rnc}`, 6, false, COLORS.muted)
+  // Cabecera del ticket: sin correo arriba (el correo solo va en el pie).
   const headerInfos = []
   if (company?.address) headerInfos.push(company.address)
   const contactParts = [company?.phone && `Tel: ${company.phone}`, company?.whatsapp && `WA: ${company.whatsapp}`].filter(Boolean)
   if (contactParts.length) headerInfos.push(contactParts.join(' | '))
-  if (company?.email) headerInfos.push(company.email)
   if (headerInfos.length) {
     const headerLine = headerInfos.join(' | ')
     const lines = doc.splitTextToSize(headerLine, contentW)
@@ -158,7 +202,7 @@ export async function buildReceiptPdf({ invoice, company, customer, qrText = '',
     const d = invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate
     try { return d ? new Date(d).toLocaleDateString('es-DO') : new Date().toLocaleDateString('es-DO') } catch { return '' }
   })()
-  textCenter(dateStr, 7, false, COLORS.muted)
+  textCenter(`FECHA EMISION: ${dateStr}`, 8, true, COLORS.dark)
   drawLightLine()
 
   // Cliente
@@ -168,8 +212,7 @@ export async function buildReceiptPdf({ invoice, company, customer, qrText = '',
   const fiscal = isFiscalInvoice(invoice)
   const custDoc = fiscal && customer?.rnc ? `RNC: ${customer.rnc}` : fiscal && customer?.cedula ? `CEDULA: ${customer.cedula}` : ''
   if (custDoc) textLeft(custDoc, 7, false, COLORS.muted)
-  if (customer?.phone || customer?.whatsapp) textLeft(`Tel: ${customer.phone || customer.whatsapp}`, 7, false, COLORS.muted)
-  if (invoice?.seller) textLeft(`VENDEDOR: ${invoice.seller}`, 7, false, COLORS.muted)
+  if (customer?.phone || customer?.whatsapp) textLeft(`Tel: ${customer.phone || customer.whatsapp}`, 7, true, COLORS.dark)
   y += 1
   drawLightLine()
 
@@ -217,27 +260,13 @@ export async function buildReceiptPdf({ invoice, company, customer, qrText = '',
   seal(totalStr, COLORS.accent)
   drawHeavyLine()
 
-  // QR
-  if (qrText) {
-    drawLightLine()
-    try {
-      const dataUrl = await QRCode.toDataURL(qrText, { width: 200, margin: 1, errorCorrectionLevel: 'M' })
-      const qrSize = Math.min(28, contentW * 0.6)
-      const x = (width - qrSize) / 2
-      doc.addImage(dataUrl, 'PNG', x, y, qrSize, qrSize)
-      y += qrSize + 3
-    } catch { /* QR generation failed - continue without image */ }
-    textCenter('Escanea para verificar tu factura', 6, false, COLORS.muted)
-    drawLightLine()
-  }
-
   // Nota cliente
   if (invoice?.notesCustomer) {
     textLeft('NOTA', 7, true, COLORS.primary)
     drawUnderline()
     const lines = doc.splitTextToSize(String(invoice.notesCustomer), contentW)
     lines.forEach((l) => {
-      doc.setFont('helvetica', 'normal')
+      doc.setFont('helvetica', 'bold')
       doc.setFontSize(6.5)
       doc.setTextColor(...COLORS.dark)
       doc.text(l, M, y)
@@ -246,18 +275,32 @@ export async function buildReceiptPdf({ invoice, company, customer, qrText = '',
     drawLightLine()
   }
 
-  // Garantía
-  if (company?.warrantyText) {
-    textLeft('GARANTIA', 7, true, COLORS.primary)
+  // Garantía y devoluciones en párrafos separados, siempre impresas, antes del QR.
+  for (const block of ticketWarrantyBlocks(company)) {
+    textLeft(block.heading, 7, true, COLORS.primary)
     drawUnderline()
-    const lines = doc.splitTextToSize(String(company.warrantyText), contentW)
-    lines.forEach((l) => {
-      doc.setFont('helvetica', 'normal')
+    const warrantyLines = doc.splitTextToSize(block.body, contentW)
+    warrantyLines.forEach((l) => {
+      doc.setFont('helvetica', 'bold')
       doc.setFontSize(6.5)
-      doc.setTextColor(...COLORS.muted)
+      doc.setTextColor(...COLORS.dark)
       doc.text(l, M, y)
       y += 3
     })
+    y += 1.5
+  }
+  drawLightLine()
+
+  // QR
+  if (qrText) {
+    try {
+      const dataUrl = await QRCode.toDataURL(qrText, { width: 200, margin: 1, errorCorrectionLevel: 'M' })
+      const qrSize = Math.min(28, contentW * 0.6)
+      const x = (width - qrSize) / 2
+      doc.addImage(dataUrl, 'PNG', x, y, qrSize, qrSize)
+      y += qrSize + 3
+    } catch { /* QR generation failed - continue without image */ }
+    textCenter('Escanea para verificar tu factura', 6, true, COLORS.dark)
     drawLightLine()
   }
 

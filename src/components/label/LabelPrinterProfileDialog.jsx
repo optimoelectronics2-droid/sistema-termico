@@ -116,13 +116,13 @@ export default function LabelPrinterProfileDialog({ design, profiles: initialPro
         // Si hay impresora manual pero sin agente, abrir diálogo navegador directamente
         if (manualName) {
           doc.autoPrint()
-          const blob = doc.output('blob')
-          const url = URL.createObjectURL(blob)
+          // Data URI en vez de Blob URL (misma razon: particion de almacenamiento de Chrome).
+          const url = doc.output('datauristring')
           const frame = document.createElement('iframe')
           frame.style.position = 'fixed'; frame.style.width='0'; frame.style.height='0'; frame.style.border='0'
           frame.src = url
           document.body.appendChild(frame)
-          frame.onload = () => { try{ frame.contentWindow?.focus(); frame.contentWindow?.print() } catch{ window.print() } ; setTimeout(()=>{ frame.remove(); URL.revokeObjectURL(url)},4000)}
+          frame.onload = () => { try{ frame.contentWindow?.focus(); frame.contentWindow?.print() } catch{ window.print() } ; setTimeout(()=>{ frame.remove()},4000)}
           setConnectionStatus(`Diálogo del sistema abierto: elija "${manualName}" (ej: Trifusion POS-80) y confirme.`)
           return
         }

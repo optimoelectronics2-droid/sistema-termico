@@ -174,7 +174,9 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
   const [showModal, setShowModal] = useState(false)
   const [devices, setDevices] = useState([])
 
-  const watcher = usePrinterWatcher({ autoConnectAgent: true })
+  // Sin auto-conexion al agente: impresion profesional por dialogo del sistema.
+  // El WebSocket solo se abre por gesto explicito del usuario (Conectar).
+  const watcher = usePrinterWatcher({ autoConnectAgent: false })
   const agentConnected = watcher.agentConnected
   const allPrinters = watcher.printers
 
@@ -376,7 +378,7 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
       setProfile({ ...getThermalProfile() })
       setManual(false)
       setDeviceInfo(`${added.productName} · BLUETOOTH`)
-      toast.success(`Impresora Bluetooth agregada: ${added.productName}. Nota: impresoras Bluetooth clásico (SPP) requieren agente local vía puerto COM virtual.`)
+      toast.success(`Impresora Bluetooth agregada: ${added.productName}. Nota: si es Bluetooth clásico (SPP), emparéjela primero en el sistema operativo.`)
     } catch (error) {
       const msg = String(error.message || '')
       if (/Clásico|Bluetooth/i.test(msg)) {
@@ -394,7 +396,7 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
     if (kind === 'normal') {
       const printerName = device.printerName || device.productName
       updateNormal({ printerName })
-      toast.success(`${device.productName} seleccionada (normal). Impresión por spooler sin diálogo si el agente está corriendo.`)
+      toast.success(`${device.productName} seleccionada (normal). Se imprimirá por el diálogo del sistema.`)
       return
     }
     updateProfile({ vendorId: device.vendorId, productName: device.productName, printerName: device.printerName || device.productName, protocol: device.protocol, connection: 'usb', manualProtocol: false })
@@ -410,7 +412,7 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
       if (isNormal) {
         const printerName = normalProfile.printerName || devices.find((d) => (d._kind || detectPrinterKind(d)) === 'normal')?.printerName || ''
         if (!printerName && !agentConnected) {
-          toast.error('No hay impresora normal seleccionada y el agente local no está corriendo. Sin agente no se puede evitar el diálogo del sistema.')
+          toast.error('No hay impresora normal seleccionada. Se abrirá el diálogo del sistema para elegir impresora.')
           setShowModal(true)
           return
         }
@@ -422,9 +424,9 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
           copies: normalProfile.copies || 1,
         })
         if (result.ok) {
-          toast.success(`Factura enviada a ${result.device} sin diálogo (agente).`)
+          toast.success(`Factura enviada a ${result.device} (directa).`)
         } else if (result.via === 'dialog' || result.fallbackToDialog) {
-          toast.info(result.error || 'Impresión silenciosa no disponible sin el agente local. Se abrirá el diálogo de impresión de tu sistema.')
+          toast.info(result.error || 'Se abrirá el diálogo de impresión de tu sistema para elegir impresora.')
         } else if (result.via === 'config') {
           toast.error(result.error || 'Falta configuración de impresora normal.')
           setShowModal(true)
@@ -547,15 +549,13 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
     } finally { setBusy(false) }
   }
 
-  const agentBanner = !agentConnected ? (
-    <span className="inline-flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-[11px] font-medium" style={{ borderColor: 'rgba(245,158,11,.35)', background: 'rgba(245,158,11,.08)', color: 'rgb(252,211,77)' }}>
-      <AlertTriangle size={12} /> Sin agente local — impresión limitada. Térmicas con driver, Bluetooth clásico y Red 9100 genérica requieren el agente. <a href="agent/README.md" target="_blank" rel="noreferrer" className="underline font-bold">Descargar agente de impresión local</a>
-    </span>
-  ) : (
+  // Impresion profesional: por dialogo del sistema. Sin banners de descarga.
+  // Si el agente local esta conectado se indica; si no, se imprime igual por dialogo.
+  const agentBanner = agentConnected ? (
     <span className="inline-flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-[11px] font-medium" style={{ borderColor: 'rgba(16,185,129,.3)', background: 'rgba(16,185,129,.08)', color: 'rgb(167,243,208)' }}>
-      <Check size={12} /> Agente conectado — impresión silenciosa disponible (USB con driver, Bluetooth clásico via COM, Red 9100 y normales sin diálogo).
+      <Check size={12} /> Impresora lista — impresión silenciosa disponible.
     </span>
-  )
+  ) : null
 
   return (
     <div className="no-print mt-3 flex w-full flex-wrap items-center gap-2 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line)', background: 'var(--bg-elevated)' }}>
@@ -624,20 +624,20 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
         )}
         {deviceInfo && isThermal ? ` · Conectada: ${deviceInfo}` : ''}
         {company?.labelPrintMode && !manual && isThermal ? ` · Config. sistema: ${company.labelPrintMode}` : ''}
-        {isNormal && !agentConnected ? ' · Sin agente: se abrirá diálogo del sistema (limitación del navegador).' : ''}
+        {isNormal && !agentConnected ? ' · Se abrirá el diálogo del sistema para elegir impresora.' : ''}
       </span>
 
-      {/* Banner honesto de capacidades */}
+      {/* Estado de impresion */}
       <div className="w-full">
         {agentBanner}
         {!caps.usb && !caps.agent ? (
-          <p className="mt-1 text-[11px] flex items-center gap-1.5" style={{ color: 'rgb(252,165,165)' }}><AlertTriangle size={12} /> WebUSB no disponible en este navegador (Safari/Firefox). Use Chrome/Edge de escritorio o el agente local.</p>
+          <p className="mt-1 text-[11px] flex items-center gap-1.5" style={{ color: 'rgb(252,165,165)' }}><AlertTriangle size={12} /> WebUSB no disponible en este navegador (Safari/Firefox). Use Chrome/Edge de escritorio.</p>
         ) : null}
         {!caps.serial && profile.connection === 'serial' && !caps.agent ? (
-          <p className="mt-1 text-[11px] flex items-center gap-1.5" style={{ color: 'rgb(252,165,165)' }}><AlertTriangle size={12} /> WebSerial no disponible. Use Chrome/Edge de escritorio o el agente local para COM/Serial real.</p>
+          <p className="mt-1 text-[11px] flex items-center gap-1.5" style={{ color: 'rgb(252,165,165)' }}><AlertTriangle size={12} /> WebSerial no disponible. Use Chrome/Edge de escritorio para COM/Serial.</p>
         ) : null}
         {!caps.bluetooth && profile.connection === 'bluetooth' && !caps.agent ? (
-          <p className="mt-1 text-[11px]" style={{ color: 'rgb(252,165,165)' }}>Bluetooth Web solo soporta BLE. La mayoría de térmicas son Bluetooth Clásico (SPP) y requieren agente local (puerto COM virtual).</p>
+          <p className="mt-1 text-[11px]" style={{ color: 'rgb(252,165,165)' }}>Bluetooth Web solo soporta BLE. Para térmicas Bluetooth clásicas (SPP), empareje la impresora en el sistema operativo.</p>
         ) : null}
       </div>
 
@@ -647,32 +647,29 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
             <div className="flex shrink-0 items-start justify-between gap-3 border-b px-4 py-3" style={{ borderColor: 'var(--line)', background: 'var(--bg-surface)' }}>
               <div>
                 <h2 className="font-display text-lg font-bold text-white">{isNormal ? 'Configuración de impresión normal' : 'Configuración de impresión térmica'}</h2>
-                <p className="mt-0.5 text-xs text-white/50">{isNormal ? 'Impresoras láser/inyección Carta/A4 vía spooler sin diálogo (requiere agente).' : 'Compatibilidad universal con cualquier impresora térmica del mercado.'}</p>
+                <p className="mt-0.5 text-xs text-white/50">{isNormal ? 'Impresoras láser/inyección Carta/A4 por diálogo del sistema.' : 'Compatibilidad universal con cualquier impresora térmica del mercado.'}</p>
               </div>
               <Button variant="ghost" icon={X} onClick={() => setShowModal(false)} aria-label="Cerrar configuración" />
             </div>
 
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">
-              {/* Estado agente */}
-              <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: agentConnected ? 'rgba(16,185,129,.3)' : 'rgba(245,158,11,.35)', background: agentConnected ? 'rgba(16,185,129,.08)' : 'rgba(245,158,11,.08)', color: agentConnected ? 'rgb(167,243,208)' : 'rgb(252,211,77)' }}>
-                <p className="font-bold flex items-center gap-2">{agentConnected ? <Check size={13} /> : <AlertTriangle size={13} />} {agentConnected ? 'Agente conectado' : 'Agente no conectado'}</p>
+              {/* Estado impresion */}
+              {agentConnected ? (
+              <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: 'rgba(16,185,129,.3)', background: 'rgba(16,185,129,.08)', color: 'rgb(167,243,208)' }}>
+                <p className="font-bold flex items-center gap-2"><Check size={13} /> Impresora lista</p>
                 <p className="mt-1 text-[11px] leading-snug" style={{ color: 'rgba(255,255,255,.7)' }}>
-                  {agentConnected
-                    ? 'Impresión 100% silenciosa disponible: USB con driver (sin reclamar interfaz), Bluetooth clásico vía COM virtual y Red TCP 9100.'
-                    : 'Sin agente: térmicas con driver activo, Bluetooth clásico y Red 9100 genérica NO funcionarán desde el navegador. Se requiere el agente local. '}
-                  {!agentConnected ? <a href="agent/README.md" target="_blank" rel="noreferrer" className="underline font-bold text-white">Descargar agente de impresión local</a> : null}
+                  Impresión silenciosa disponible.
                 </p>
-                {!caps.usb ? <p className="mt-1 text-[11px]" style={{ color: 'rgb(252,165,165)' }}>Este navegador no soporta WebUSB (Safari/Firefox). El agente es obligatorio para USB en este navegador.</p> : null}
-                {!caps.bluetooth ? <p className="mt-1 text-[11px]" style={{ color: 'rgb(252,165,165)' }}>Este navegador no soporta Web Bluetooth. Para Bluetooth, use Chrome/Edge o agente local.</p> : null}
               </div>
+              ) : null}
 
               <Section icon={Printer} title={isNormal ? `Impresoras del sistema — ${normalCount} normales` : `Impresora conectada — ${thermalCount} térmicas`}>
                 <div className="space-y-1.5">
                   {filteredDevices.length === 0 && (
                     <div className="rounded-lg border border-dashed px-3 py-4 text-center" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
                       <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{agentConnected ? (isNormal ? 'No hay impresoras normales detectadas' : 'No hay térmicas detectadas') : 'Ninguna impresora agregada aún'}</p>
-                      <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{agentConnected ? `Detectadas ${dedupedDevices.length} reales (filtradas a ${filteredDevices.length} ${isNormal ? 'normales' : 'térmicas'}). Use modo Manual si su modelo no aparece.` : 'Use "Agregar impresora por USB" con la impresora enchufada, o instale el agente para detección automática. Puede escribir el nombre manual abajo.'}</p>
-                      {!agentConnected ? <p className="mt-1 text-[11px]" style={{ color: 'rgb(252,165,165)' }}>Para impresoras ya instaladas en Windows/macOS (HP, Canon, Epson, etc.) instale el agente para verlas aquí o use el campo Manual.</p> : null}
+                      <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{agentConnected ? `Detectadas ${dedupedDevices.length} reales (filtradas a ${filteredDevices.length} ${isNormal ? 'normales' : 'térmicas'}). Use modo Manual si su modelo no aparece.` : 'Use "Agregar impresora por USB" con la impresora enchufada. También puede escribir el nombre manual abajo.'}</p>
+                      {!agentConnected ? <p className="mt-1 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Para impresoras ya instaladas en Windows/macOS, use el campo Manual o imprima por el diálogo del sistema.</p> : null}
                     </div>
                   )}
                   {filteredDevices.map((device) => {
@@ -702,15 +699,14 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
                   <Button variant="primary" icon={Plus} onClick={handleAddUsb} disabled={busy}>Agregar impresora por USB</Button>
                   <Button variant="ghost" icon={Bluetooth} onClick={handleAddBluetooth} disabled={busy}>Agregar por Bluetooth</Button>
                   <Button variant="ghost" icon={RefreshCw} onClick={refreshDevices} disabled={busy}>Buscar impresoras</Button>
-                  {!agentConnected ? <a href="agent/README.md" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold" style={{ borderColor: 'rgba(245,158,11,.35)', background: 'rgba(245,158,11,.12)', color: 'rgb(252,211,77)' }}><Download size={13} /> Descargar agente</a> : null}
                 </div>
                 <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-                  {agentConnected ? 'Detección en tiempo real activa: al conectar/desconectar una impresora, la lista se actualiza sola (agente + WebUSB/Serial).' : 'Chrome mostrará primero solo impresoras; si su modelo no aparece, se ofrece la lista completa automáticamente. Con agente, la detección es automática y sin diálogos repetidos.'}
+                  {agentConnected ? 'Detección en tiempo real activa: al conectar/desconectar una impresora, la lista se actualiza sola.' : 'Chrome mostrará primero solo impresoras; si su modelo no aparece, se ofrece la lista completa automáticamente.'}
                 </p>
                 <div className="flex flex-col gap-1.5 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--line-subtle)', background: 'var(--bg-input)' }}>
                   <span className="text-xs font-bold flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}><Wrench size={11} /> Manual — nombre exacto en Windows</span>
                   <input id={ids.manualThermalPrinter} value={profile.printerName || normalProfile.printerName || ''} onChange={(e) => { const v = e.target.value; updateProfile({ printerName: v, printMode: 'manual' }); updateNormal({ printerName: v }) }} placeholder="Ej: Trifusion POS-80" className="input-dark py-1.5 text-xs" aria-label="manual-printer-name" autoComplete="off" />
-                  <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>Útil para virtuales que no aparecen (ej. Trifusion POS-80, POS80, 80mm Thermal Printer, EPSON TM-T20). Si escribe aquí, se usa este nombre vía agente spooler (silencioso) o diálogo del sistema si no hay agente.</span>
+                  <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>Útil para virtuales que no aparecen (ej. Trifusion POS-80, POS80, 80mm Thermal Printer, EPSON TM-T20). Al imprimir se abrirá el diálogo del sistema con ese nombre.</span>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="ghost" icon={Printer} onClick={handleBrowserTicket} disabled={busy}>Ticket navegador (elige POS-80)</Button>
@@ -724,12 +720,12 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
                     <div className="space-y-2">
                       <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Protocolo del lenguaje de la impresora</p>
                       <Segmented options={THERMAL_PROTOCOLS} value={profile.protocol || 'escpos'} onChange={(id) => updateProfile({ protocol: id, manualProtocol: true })} columns={5} />
-                      {!caps.usb ? <p className="text-[11px]" style={{ color: 'rgb(252,165,165)' }}>WebUSB no disponible en este navegador. El agente permite USB igualmente (vía driver).</p> : null}
+                      {!caps.usb ? <p className="text-[11px]" style={{ color: 'rgb(252,165,165)' }}>WebUSB no disponible en este navegador. Use Chrome/Edge de escritorio.</p> : null}
                     </div>
                     <div className="space-y-2">
                       <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Método de conexión</p>
                       <Segmented options={THERMAL_CONNECTIONS} value={profile.connection || 'auto'} onChange={(id) => updateProfile({ connection: id })} columns={2} />
-                      {profile.connection === 'bluetooth' && !caps.bluetooth ? <p className="text-[11px]" style={{ color: 'rgb(252,165,165)' }}>Web Bluetooth (BLE) no disponible aquí. Para Bluetooth clásico, empareje en el SO y use el agente (puerto COM virtual).</p> : null}
+                      {profile.connection === 'bluetooth' && !caps.bluetooth ? <p className="text-[11px]" style={{ color: 'rgb(252,165,165)' }}>Web Bluetooth (BLE) no disponible aquí. Para Bluetooth clásico, empareje la impresora en el sistema operativo.</p> : null}
                     </div>
                   </Section>
 
@@ -803,7 +799,7 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
                         <input id={ids.networkPort} name="thermal-network-port" type="number" min="1" max="65535" value={profile.networkPort || 8001} onChange={(event) => updateProfile({ networkPort: Number(event.target.value) || 8001 })} className="input-dark max-w-24 py-1 text-xs" aria-label="puerto" autoComplete="off" />
                       </div>
                       <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-                        {agentConnected ? 'Con agente: se usará socket TCP crudo a puerto 9100 (genérica). Sin agente, solo WebPRNT (Star) por HTTP.' : 'Sin agente: solo WebPRNT (Star). Para 9100 genérica, instale el agente.'}
+                        {agentConnected ? 'Se usará socket TCP directo a puerto 9100 (genérica).' : 'Impresión por red vía WebPRNT (Star) por HTTP o diálogo del sistema.'}
                       </p>
                     </Section>
                   )}
@@ -816,7 +812,7 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
                           {[9600, 19200, 38400, 57600, 115200].map((rate) => <option key={rate} value={rate}>{rate}</option>)}
                         </select>
                       </div>
-                      <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{agentConnected ? 'Con agente: soporta COM real y Bluetooth clásico vía puerto COM virtual.' : 'Chrome pedirá seleccionar el puerto COM (WebSerial). Para Bluetooth clásico, use el agente.'}</p>
+                      <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{agentConnected ? 'Soporta COM real y Bluetooth clásico vía puerto COM virtual.' : 'Chrome pedirá seleccionar el puerto COM (WebSerial).'}</p>
                     </Section>
                   )}
                 </>
@@ -836,7 +832,7 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
                         {dedupedAll.filter((p) => (p._kind || detectPrinterKind(p)) === 'normal').length === 0 && normalProfile.printerName ? <option value={normalProfile.printerName}>{normalProfile.printerName}</option> : null}
                       </select>
                     </div>
-                    {!agentConnected ? <p className="text-[11px] flex items-center gap-1.5" style={{ color: 'rgb(252,211,77)' }}><AlertTriangle size={11} /> Sin agente no hay impresión silenciosa: se abrirá el diálogo del sistema (restricción de seguridad del navegador, no un bug).</p> : null}
+                    {!agentConnected ? <p className="text-[11px] flex items-center gap-1.5" style={{ color: 'rgb(252,211,77)' }}><AlertTriangle size={11} /> Se abrirá el diálogo del sistema para elegir impresora y confirmar.</p> : null}
                     <div className="grid grid-cols-2 gap-2">
                       <div className="flex flex-col gap-1">
                         <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Tamaño de papel</span>
@@ -855,14 +851,13 @@ export function InvoiceThermalActions({ invoice, company, customer, qrText = '' 
                       <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Número de copias</span>
                       <input id={ids.normalCopies} name="normal-copies" type="number" min="1" max="99" value={normalProfile.copies || 1} onChange={(e) => updateNormal({ copies: Math.max(1, Number(e.target.value) || 1) })} className="input-dark max-w-24 py-1 text-xs" aria-label="copias" autoComplete="off" />
                     </div>
-                    <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Con agente, el PDF se envía directo al spooler sin diálogo. Sin agente, se usa window.print() y el navegador siempre mostrará su diálogo (limitación real, no configurable).</p>
+                    <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>El PDF se imprime por el diálogo del sistema: elija su impresora y confirme.</p>
                   </Section>
 
-                  <Section icon={Monitor} title="Nota sobre impresión silenciosa">
+                  <Section icon={Monitor} title="Nota sobre impresión">
                     <p className="text-xs leading-snug" style={{ color: 'var(--text-secondary)' }}>
-                      La impresión normal silenciosa <b>solo</b> es posible con el agente local. Es una restricción de seguridad de todos los navegadores: ninguna página puede imprimir en una láser/inyección sin mostrar el diálogo del sistema, salvo vía un agente nativo que hable con el spooler.
+                      La impresión se realiza por el diálogo del sistema: elija su impresora y confirme. Es el flujo estándar de los sistemas de facturación profesionales.
                     </p>
-                    {!agentConnected ? <a href="agent/README.md" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold" style={{ borderColor: 'rgba(59,130,246,.4)', background: 'rgba(59,130,246,.12)', color: 'rgb(147,197,253)' }}><Download size={12} /> Descargar agente de impresión local</a> : null}
                   </Section>
                 </>
               )}

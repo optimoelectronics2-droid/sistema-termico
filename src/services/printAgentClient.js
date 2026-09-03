@@ -17,6 +17,9 @@ let connecting = false
 let reconnectTimer = null
 let reconnectAttempts = 0
 let manuallyClosed = false
+// Solo reintentar si alguna vez hubo conexion real. Si el agente nunca existio,
+// no se reintenta (evita spam de ERR_CONNECTION_REFUSED en consola).
+let everConnected = false
 
 // Estado de impresoras cacheado (último recibido del agente)
 let lastPrinters = []
@@ -65,6 +68,10 @@ function sendJson(obj) {
 function scheduleReconnect() {
   if (manuallyClosed) return
   if (reconnectTimer) return
+  // Profesional: si nunca hubo agente, no reintentar (sin spam en consola).
+  // Solo reconectar cuando se cayo una sesion que antes estaba activa.
+  if (!everConnected) return
+  if (reconnectAttempts >= 5) return
   const delay = Math.min(RECONNECT_BASE_MS * Math.pow(1.5, reconnectAttempts), RECONNECT_MAX_MS)
   reconnectAttempts += 1
   reconnectTimer = window.setTimeout(() => {
@@ -149,6 +156,7 @@ export function connect(url = DEFAULT_URL) {
       ws.addEventListener('open', () => {
         window.clearTimeout(openTimer)
         reconnectAttempts = 0
+        everConnected = true
         notifyStatus(true)
         // Pedir lista inicial
         try {
@@ -407,11 +415,17 @@ export async function printPdfViaAgent({ pdf, printerName, copies = 1, paperSize
 }
 
 // ── Auto-connect helper ─────────────────────────────────────────────
+// Comportamiento profesional (sistemas POS reales): NO se abre WebSocket al
+// montar pantallas. El agente es opcional y solo se intenta bajo demanda
+// explicita (boton Conectar / Buscar impresoras). Asi no hay errores
+// ERR_CONNECTION_REFUSED en consola cuando el agente no esta instalado.
 let autoConnectStarted = false
 let autoConnectCount = 0
 let visibilityHandler = null
 /**
- * Inicia conexión persistente al agente (intenta reconectar solo). Llamar al montar la pantalla de configuración.
+ * Registra interes en el agente SIN conectar automaticamente.
+ * Solo reconecta en visibilidad si alguna vez hubo conexion real.
+ * Para intento manual bajo demanda, llamar a connect() desde el gesto del usuario.
  * Devuelve función para detener. Soporta múltiples callers (contador).
  */
 export function ensureAgentConnection(url = DEFAULT_URL) {
@@ -420,9 +434,10 @@ export function ensureAgentConnection(url = DEFAULT_URL) {
   if (!autoConnectStarted) {
     autoConnectStarted = true
     manuallyClosed = false
-    connect(desiredUrl).catch(() => { /* reconexión automática via scheduleReconnect */ })
+    // Sin conexion automatica: el WebSocket solo se abre por gesto del usuario
+    // (connect() explicito). Nada de reintentos si el agente no existe.
     visibilityHandler = () => {
-      if (document.visibilityState === 'visible' && !isAgentConnected()) {
+      if (document.visibilityState === 'visible' && !isAgentConnected() && everConnected) {
         connect(desiredUrl).catch(() => {})
       }
     }

@@ -2,6 +2,7 @@ import QRCode from 'qrcode'
 import { FileDown, Mail, MessageCircle, Printer } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { currency, formatDate } from '../../lib/formatters'
+import { TICKET_RETURNS_TEXT, TICKET_WARRANTY_TEXT } from '../../lib/invoiceThermal'
 import { ncfTypes } from '../../lib/taxEngine'
 import { Button } from '../ui/Button'
 import { buildCleanInvoicePdf, downloadCleanInvoicePdf, printCleanInvoicePdf } from './invoicePdf'
@@ -41,7 +42,7 @@ export function InvoicePreview({ invoice, company, customer, format = 'letter', 
       margin: 1,
       width: 531,
       color: {
-        dark: '#071A3F',
+        dark: '#000000',
         light: '#FFFFFF',
       },
     }).then((value) => {
@@ -180,31 +181,47 @@ function TicketInvoice({ invoice, company, customer, qr, title, showActions, pre
   return (
     <div className="space-y-3">
       {showActions ? <Actions invoice={invoice} customer={customer} company={company} /> : null}
-      <div id={resolvedPreviewId} data-invoice-preview="ticket" className="invoice-paper relative mx-auto w-[302px] overflow-hidden rounded-sm p-3 text-center font-mono text-[11px]">
+      <div id={resolvedPreviewId} data-invoice-preview="ticket" className="invoice-paper relative mx-auto w-[302px] overflow-hidden rounded-sm bg-white p-3 text-center font-mono text-[11px] font-bold text-black" style={{ color: '#000', background: '#fff' }}>
+        {company?.logoUrl ? (
+          <div className="mb-2 mt-1 flex justify-center">
+            <img src={company.logoUrl} alt={`Logo ${company?.name || 'tienda'}`} className="max-h-16 max-w-[180px] object-contain" style={{ filter: 'grayscale(1) contrast(1.4)' }} />
+          </div>
+        ) : null}
         <p className="text-lg font-black">{company?.name || 'Empresa'}</p>
-        {fiscal && company?.rnc ? <p>RNC: {company.rnc}</p> : null}
+        {fiscal && company?.rnc ? <p className="font-bold">RNC: {company.rnc}</p> : null}
         {company?.address ? <p>{company.address}</p> : null}
-        {company?.phone ? <p>Tel: {company.phone}</p> : null}
+        {company?.phone ? <p className="font-bold">Tel: {company.phone}</p> : null}
         <p>- - - - - - - - - - - - - - -</p>
         <p className="text-base font-black">{title}</p>
-        <p className="font-bold">{invoiceNumber}</p>
-        {fiscal && invoice.ncf ? <p>NCF: {invoice.ncf}</p> : null}
-        <p>{formatDate(invoice.issuedAt || invoice.createdAt)}</p>
-        <p>Cliente: {customer?.name || invoice.customerName || 'Final'}</p>
+        <p className="font-black">{invoiceNumber}</p>
+        {fiscal && invoice.ncf ? <p className="font-bold">NCF: {invoice.ncf}</p> : null}
+        <p className="font-bold">FECHA EMISION: {formatDate(invoice.issuedAt || invoice.createdAt)}</p>
+        <p className="font-black">CLIENTE: {customer?.name || invoice.customerName || 'Final'}</p>
         <p>- - - - - - - - - - - - - - -</p>
         {(invoice.items || []).map((item, index) => (
-          <div key={`${item.productId}-${index}`} className="py-1 text-left">
-            <p>{index + 1}. {item.name}</p>
-            <p className="text-right">{item.quantity} x {currency.format(item.price)} = {currency.format((item.net || 0) + (item.tax || 0))}</p>
+          <div key={`${item.productId}-${index}`} className="py-1 text-left font-bold">
+            <p className="font-black">{index + 1}. {item.name}</p>
+            <p className="text-right font-bold">{item.quantity} x {currency.format(item.price)} = {currency.format((item.net || 0) + (item.tax || 0))}</p>
           </div>
         ))}
         <p>- - - - - - - - - - - - - - -</p>
-        {fiscal ? <p>SUBTOTAL {currency.format(invoice.totals?.subtotal || 0)}</p> : null}
-        {fiscal ? <p>ITBIS {currency.format(invoice.totals?.itbis || 0)}</p> : null}
+        {fiscal ? <p className="font-bold">SUBTOTAL {currency.format(invoice.totals?.subtotal || 0)}</p> : null}
+        {fiscal ? <p className="font-bold">ITBIS {currency.format(invoice.totals?.itbis || 0)}</p> : null}
         <p className="mt-1 text-xl font-black">TOTAL {currency.format(invoice.totals?.total || 0)}</p>
+        <p>- - - - - - - - - - - - - - -</p>
+        <p className="font-black">GARANTÍA Y DEVOLUCIONES</p>
+        {company?.warrantyText ? (
+          <p className="mt-1 text-left text-[10px] font-bold leading-snug">{company.warrantyText}</p>
+        ) : (
+          <>
+            <p className="mt-1 text-left text-[10px] font-bold leading-snug">{TICKET_WARRANTY_TEXT}</p>
+            <p className="mt-1 text-left text-[10px] font-bold leading-snug">{TICKET_RETURNS_TEXT}</p>
+          </>
+        )}
+        <p>- - - - - - - - - - - - - - -</p>
         {qr ? <img src={qr} alt="QR de validación" className="mx-auto mt-2 h-20 w-20" /> : null}
-        <p className="mt-1 text-[9px]">Escanee el QR para validar</p>
-        <p className="mt-2">{company?.name || 'Empresa'}</p>
+        <p className="mt-1 text-[9px] font-bold">Escanee el QR para validar</p>
+        <p className="mt-2 font-black">{company?.name || 'Empresa'}</p>
       </div>
     </div>
   )

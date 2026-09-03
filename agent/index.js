@@ -43,7 +43,8 @@ try {
 const THERMAL_KEYWORDS = [
   'epson tm', 'tm-t20', 'tm-t88', 'tm-m30', 'star', 'bixolon', 'xprinter', 'xp-',
   'zebra', 'citizen', 'rongta', 'gainscha', 'pos-', 'pos80', 'pos58', 'pos 80', 'pos 58',
-  '80mm', '58mm', 'thermal', 'receipt', 'ticket', 'pos', 'etiqueta', 'label'
+  '80mm', '58mm', 'thermal', 'receipt', 'ticket', 'pos', 'etiqueta', 'label',
+  'agiler', 'agi-pr', 'agi', 'pr2000', 'pr 2000'
 ]
 const THERMAL_VENDOR_HINTS = new Set(['0x04b8', '0x0519', '0x154f', '0x28e9', '0x0a5f', '0x1e17', '0x067b', '0x0416'])
 

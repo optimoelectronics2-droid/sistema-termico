@@ -13,7 +13,7 @@ import * as printAgentClient from '../services/printAgentClient'
 import { listThermalDevices } from '../services/thermalPrinterService'
 import { detectPrinterKind } from '../services/printerProfile'
 
-export function usePrinterWatcher({ autoConnectAgent = true, agentUrl } = {}) {
+export function usePrinterWatcher({ autoConnectAgent = false, agentUrl } = {}) {
   const [agentConnected, setAgentConnected] = useState(() => printAgentClient.isAgentConnected())
   const [agentPrinters, setAgentPrinters] = useState(() => printAgentClient.getLastPrinters())
   const [webDevices, setWebDevices] = useState([])

@@ -91,7 +91,8 @@ async function openBrowserPrintDialog(sourceElement) {
     const pdfInstance = await buildCleanInvoicePdf(el)
     if (pdfInstance) {
       pdfInstance.autoPrint()
-      const url = URL.createObjectURL(pdfInstance.output('blob'))
+      // Data URI en vez de Blob URL (misma razon: particion de almacenamiento de Chrome).
+      const url = pdfInstance.output('datauristring')
       const frame = document.createElement('iframe')
       frame.style.position = 'fixed'
       frame.style.right = '0'
@@ -105,7 +106,7 @@ async function openBrowserPrintDialog(sourceElement) {
         // No caer a window.print() de la aplicación: ese respaldo imprime el
         // dashboard en vez de la factura. El iframe contiene solo el PDF.
         try { frame.contentWindow?.focus(); frame.contentWindow?.print() } catch { /* no imprimir la página principal */ }
-        window.setTimeout(() => { frame.remove(); URL.revokeObjectURL(url) }, 4000)
+        window.setTimeout(() => { frame.remove() }, 4000)
       }
       return { ok: false, via: 'dialog', error: 'Impresión silenciosa no disponible; se abrió el diálogo de impresión de tu sistema.', silent: false, fallbackToDialog: true }
     }
@@ -199,7 +200,7 @@ export function isSilentNormalAvailable() {
 
 export function getSilentPrintLimitationMessage() {
   if (isSilentNormalAvailable()) return ''
-  return 'Impresión silenciosa no disponible sin el agente local. Se abrirá el diálogo de impresión de tu sistema (restricción de seguridad de todos los navegadores, no un bug). Para impresión 100% silenciosa, instale y ejecute el agente local (carpeta agent/ → npm install && npm start).'
+  return 'Se abrirá el diálogo de impresión de tu sistema para elegir impresora y confirmar.'
 }
 
 // Hook-friendly helper para UI
@@ -208,8 +209,8 @@ export function getNormalPrintStatus() {
   return {
     silent: connected,
     message: connected
-      ? 'Impresión silenciosa disponible vía agente.'
-      : 'Sin agente: la impresión normal usará el diálogo del sistema.',
+      ? 'Impresión directa disponible.'
+      : 'La impresión usará el diálogo del sistema.',
     limitation: getSilentPrintLimitationMessage(),
   }
 }

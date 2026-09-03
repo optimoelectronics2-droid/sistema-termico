@@ -109,6 +109,29 @@ function balanceDue(invoice) {
   return Math.max(Number(invoice?.totals?.total || 0) - paidAmount(invoice), 0)
 }
 
+// Texto legal por defecto del ticket termico: siempre va antes del QR.
+// Si la empresa define warrantyText propio, ese tiene prioridad.
+export const TICKET_WARRANTY_TEXT = 'GARANTÍA: Solo por defecto de fábrica, falla técnica o irregularidad. No cubre daños por cliente/técnico, voltaje, catástrofes o equipos quemados. Requiere factura y caja. Se pierde al abrir o reparar el equipo. Algunos productos no tienen garantía.'
+export const TICKET_RETURNS_TEXT = 'DEVOLUCIONES: No se devuelve dinero. Se cambia por productos del inventario o se emite nota de crédito. Requiere comprobante de compra y producto completo, con accesorios, empaques y manuales, sin uso.'
+export const DEFAULT_TICKET_WARRANTY = `${TICKET_WARRANTY_TEXT} ${TICKET_RETURNS_TEXT}`
+
+export function ticketWarranty(company) {
+  const custom = String(company?.warrantyText || '').trim()
+  return custom || DEFAULT_TICKET_WARRANTY
+}
+
+// Bloques separados para el ticket: GARANTIA y DEVOLUCIONES como parrafos
+// independientes, uno debajo del otro. Si la empresa define warrantyText
+// propio (bloque unico), se respeta tal cual.
+export function ticketWarrantyBlocks(company) {
+  const custom = String(company?.warrantyText || '').trim()
+  if (custom) return [{ heading: 'GARANTIA Y DEVOLUCIONES', body: custom }]
+  return [
+    { heading: 'GARANTIA', body: TICKET_WARRANTY_TEXT },
+    { heading: 'DEVOLUCIONES', body: TICKET_RETURNS_TEXT },
+  ]
+}
+
 function wrapLines(str, cols) {
   const words = String(str || '').trim().split(/\s+/).filter(Boolean)
   const lines = []
@@ -162,16 +185,22 @@ export function buildInvoiceEscpos({ invoice, company, customer, qrText = '', pa
     else if (size === 'lg') cmd(GS, 0x21, 0x11)
     else if (size === 'xl') cmd(GS, 0x21, 0x22)
     else cmd(GS, 0x21, 0x00)
-    if (bold && useBold) cmd(ESC, 0x45, 0x01)
+    // Ticket termico: todo en negrita para trazo grueso y legible (203 dpi).
+    // Solo se desactiva si el perfil trae bold === false explicito.
+    void bold
+    if (useBold) cmd(ESC, 0x45, 0x01)
+    // Ajuste exacto a 80 mm: el doble ancho ocupa 2 columnas, asi que esas
+    // lineas se cortan a cols/2 para que la impresora no las parta.
+    const maxChars = (scale > 0 || size === 'lg' || size === 'xl') ? Math.max(16, Math.floor(cols / 2)) : cols
     if (accentedText) {
-      const raw = sanitizeForCp858(str).slice(0, cols * 8)
+      const raw = sanitizeForCp858(str).slice(0, maxChars)
       const encoded = encodeCp858(raw)
       const line = new Uint8Array(encoded.length + 1)
       line.set(encoded, 0)
       line[encoded.length] = 0x0A
       chunks.push(line)
     } else {
-      chunks.push(new TextEncoder().encode(sanitizeThermalText(str).slice(0, cols * 8) + '\n'))
+      chunks.push(new TextEncoder().encode(sanitizeThermalText(str).slice(0, maxChars) + '\n'))
     }
     cmd(ESC, 0x45, 0x00)
     cmd(GS, 0x21, 0x00)
@@ -193,16 +222,17 @@ export function buildInvoiceEscpos({ invoice, company, customer, qrText = '', pa
   cmd(ESC, 0x40)
   if (accentedText) cmd(ESC, 0x74, 19)
   if (lineSpacing) cmd(ESC, 0x33, Math.min(255, Math.max(20, Number(lineSpacing) || 30)))
-  if (logo) text(company?.name || 'EMPRESA', { align: 'center', bold: true, size: 'xl', scale: fontScale })
+  // Nombre de la tienda envuelto a medio ancho: en doble tamano cada
+  // caracter ocupa 2 columnas (24 en papel 80 mm).
+  if (logo) {
+    for (const line of wrapLines(company?.name || 'EMPRESA', Math.max(16, Math.floor(cols / 2)))) text(line, { align: 'center', bold: true, size: 'xl', scale: fontScale })
+  }
   if (isFiscalInvoice(invoice) && company?.rnc) text(`RNC: ${company.rnc}`, { align: 'center' })
   if (company?.address) {
     for (const line of wrapLines(company.address, cols)) text(line, { align: 'center' })
   }
   if (company?.phone) text(`Tel: ${company.phone}`, { align: 'center' })
   if (company?.whatsapp) text(`WA: ${company.whatsapp}`, { align: 'center' })
-  if (company?.email) {
-    for (const line of wrapLines(company.email, cols)) text(line, { align: 'center' })
-  }
   separator()
 
   text('FACTURA', { align: 'center', bold: true, size: 'lg', scale: fontScale })
@@ -219,7 +249,7 @@ export function buildInvoiceEscpos({ invoice, company, customer, qrText = '', pa
     }
   }
   if (invoice?.ncf) text(`NCF: ${invoice.ncf}`, { align: 'center' })
-  text(formatDate(invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate), { align: 'center' })
+  text(`FECHA EMISION: ${formatDate(invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate)}`, { align: 'center', bold: true })
   separator()
 
   text(`CLIENTE: ${customer?.name || invoice?.customerName || 'Consumidor final'}`, { bold: true })
@@ -227,7 +257,6 @@ export function buildInvoiceEscpos({ invoice, company, customer, qrText = '', pa
   const customerDocument = fiscal && customer?.rnc ? `RNC: ${customer.rnc}` : fiscal && customer?.cedula ? `CEDULA: ${customer.cedula}` : ''
   if (customerDocument) text(customerDocument)
   if (customer?.phone || customer?.whatsapp) text(`Tel: ${customer.phone || customer.whatsapp}`)
-  if (invoice?.seller) text(`VENDEDOR: ${invoice.seller}`)
   separator()
 
   const items = invoice?.items || []
@@ -252,22 +281,25 @@ export function buildInvoiceEscpos({ invoice, company, customer, qrText = '', pa
   if (fiscal && invoice?.totals?.itbis) text(`${'ITBIS 18%'.padEnd(cols - 8)}${currency.format(invoice.totals.itbis)}`, { align: 'right' })
   text(`${'PAGADO'.padEnd(cols - 8)}${currency.format(paidAmount(invoice))}`, { align: 'right' })
   text(`${'PENDIENTE'.padEnd(cols - 8)}${currency.format(balanceDue(invoice))}`, { align: 'right' })
-  text(`${'TOTAL'.padEnd(cols - 10)}${currency.format(invoice?.totals?.total || 0)}`, { align: 'right', bold: true, size: 'lg', scale: fontScale })
+  // TOTAL en doble tamano: linea corta envuelta a medio ancho para 80 mm.
+  for (const line of wrapLines(`TOTAL ${currency.format(invoice?.totals?.total || 0)}`, Math.max(16, Math.floor(cols / 2)))) text(line, { align: 'center', bold: true, size: 'lg', scale: fontScale })
   separator('=')
-
-  if (qrEnabled && qrText) pushQrEscpos(chunks, qrText, cols)
-  if (qrEnabled) text('Escanee el QR para validar', { align: 'center' })
-  separator()
 
   if (invoice?.notesCustomer) {
     for (const line of wrapLines(invoice.notesCustomer, cols - 2)) text(line)
     separator()
   }
 
-  if (company?.warrantyText) {
-    for (const line of wrapLines(company.warrantyText, cols - 6)) text(line)
+  for (const block of ticketWarrantyBlocks(company)) {
+    text(block.heading, { align: 'center', bold: true })
+    for (const line of wrapLines(block.body, cols - 2)) text(line)
     separator()
   }
+
+  if (qrEnabled && qrText) pushQrEscpos(chunks, qrText, cols)
+  if (qrEnabled) text('Escanee el QR para validar', { align: 'center' })
+  separator()
+
   text(company?.name || 'EMPRESA', { align: 'center', bold: true })
   const endBytes = [10, 10, 10]
   if (drawer) {
@@ -296,16 +328,21 @@ export function buildInvoiceEscposModern({ invoice, company, customer, qrText = 
     else if (size === 'lg') cmd(GS, 0x21, 0x11)
     else if (size === 'xl') cmd(GS, 0x21, 0x22)
     else cmd(GS, 0x21, 0x00)
-    if (bold && useBold) cmd(ESC, 0x45, 0x01)
+    // Ticket termico: todo en negrita para trazo grueso y legible (203 dpi).
+    void bold
+    if (useBold) cmd(ESC, 0x45, 0x01)
+    // Ajuste exacto a 80 mm: el doble ancho ocupa 2 columnas, asi que esas
+    // lineas se cortan a cols/2 para que la impresora no las parta.
+    const maxChars = (scale > 0 || size === 'lg' || size === 'xl') ? Math.max(16, Math.floor(cols / 2)) : cols
     if (accentedText) {
-      const raw = sanitizeForCp858(str).slice(0, cols * 8)
+      const raw = sanitizeForCp858(str).slice(0, maxChars)
       const encoded = encodeCp858(raw)
       const line = new Uint8Array(encoded.length + 1)
       line.set(encoded, 0)
       line[encoded.length] = 0x0A
       chunks.push(line)
     } else {
-      chunks.push(new TextEncoder().encode(sanitizeThermalText(str).slice(0, cols * 8) + '\n'))
+      chunks.push(new TextEncoder().encode(sanitizeThermalText(str).slice(0, maxChars) + '\n'))
     }
     cmd(ESC, 0x45, 0x00)
     cmd(GS, 0x21, 0x00)
@@ -334,16 +371,15 @@ export function buildInvoiceEscposModern({ invoice, company, customer, qrText = 
   if (lineSpacing) cmd(ESC, 0x33, Math.min(255, Math.max(20, Number(lineSpacing) || 30)))
 
   // Encabezado empresa moderno - cada dato en línea separada y centrado
-  if (logo) text(company?.name || 'EMPRESA', { align: 'center', bold: true, scale: 3 })
+  if (logo) {
+    for (const line of wrapLines(company?.name || 'EMPRESA', Math.max(16, Math.floor(cols / 2)))) text(line, { align: 'center', bold: true, scale: 3 })
+  }
   if (isFiscalInvoice(invoice) && company?.rnc) text(`RNC: ${company.rnc}`, { align: 'center' })
   if (company?.address) {
     for (const line of wrapLines(company.address, cols)) text(line, { align: 'center' })
   }
   if (company?.phone) text(`Tel: ${company.phone}`, { align: 'center' })
   if (company?.whatsapp) text(`WA: ${company.whatsapp}`, { align: 'center' })
-  if (company?.email) {
-    for (const line of wrapLines(company.email, cols)) text(line, { align: 'center' })
-  }
   heavySep()
 
   // Bloque FACTURA
@@ -371,17 +407,16 @@ export function buildInvoiceEscposModern({ invoice, company, customer, qrText = 
     }
   }
   if (invoice?.ncf) text(`NCF: ${invoice.ncf}`, { align: 'center' })
-  text(formatDate(invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate), { align: 'center' })
+  text(`FECHA EMISION: ${formatDate(invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate)}`, { align: 'center', bold: true })
   lightSep()
 
-  // Bloque cliente con subrayado
+  // Bloque cliente con subrayado (solo cliente, sin vendedor)
   text('CLIENTE', { align: 'left', underline: true })
   text(customer?.name || invoice?.customerName || 'Consumidor final', { bold: true })
   const fiscal = isFiscalInvoice(invoice)
   const customerDocument = fiscal && customer?.rnc ? `RNC: ${customer.rnc}` : fiscal && customer?.cedula ? `CEDULA: ${customer.cedula}` : ''
   if (customerDocument) text(customerDocument)
   if (customer?.phone || customer?.whatsapp) text(`Tel: ${customer.phone || customer.whatsapp}`)
-  if (invoice?.seller) text(`VENDEDOR: ${invoice.seller}`)
 
   // Productos
   lightSep()
@@ -408,11 +443,22 @@ export function buildInvoiceEscposModern({ invoice, company, customer, qrText = 
   if (fiscal && invoice?.totals?.itbis) text(`${'ITBIS 18%'.padEnd(cols - 8)}${currency.format(invoice.totals.itbis)}`, { align: 'right' })
   text(`${'PAGADO'.padEnd(cols - 8)}${currency.format(paidAmount(invoice))}`, { align: 'right' })
   text(`${'PENDIENTE'.padEnd(cols - 8)}${currency.format(balanceDue(invoice))}`, { align: 'right' })
-  text(`${'TOTAL'.padEnd(cols - 10)}${currency.format(invoice?.totals?.total || 0)}`, { align: 'right', bold: true, size: 'lg', scale: fontScale, invert: true })
+  for (const line of wrapLines(`TOTAL ${currency.format(invoice?.totals?.total || 0)}`, Math.max(16, Math.floor(cols / 2)))) text(line, { align: 'center', bold: true, size: 'lg', scale: fontScale, invert: true })
   heavySep()
 
-  if (qrEnabled && qrText) {
+  if (invoice?.notesCustomer) {
+    text('NOTA', { align: 'left', underline: true })
+    for (const line of wrapLines(invoice.notesCustomer, cols - 2)) text(line)
     lightSep()
+  }
+
+  for (const block of ticketWarrantyBlocks(company)) {
+    text(block.heading, { align: 'left', underline: true })
+    for (const line of wrapLines(block.body, cols - 2)) text(line)
+    lightSep()
+  }
+
+  if (qrEnabled && qrText) {
     pushQrEscpos(chunks, qrText, cols)
     text('Escanea para verificar tu factura', { align: 'center' })
     lightSep()
@@ -421,17 +467,6 @@ export function buildInvoiceEscposModern({ invoice, company, customer, qrText = 
     lightSep()
   }
 
-  if (invoice?.notesCustomer) {
-    text('NOTA', { align: 'left', underline: true })
-    for (const line of wrapLines(invoice.notesCustomer, cols - 2)) text(line)
-    lightSep()
-  }
-
-  if (company?.warrantyText) {
-    text('GARANTIA', { align: 'left', underline: true })
-    for (const line of wrapLines(company.warrantyText, cols - 6)) text(line)
-    lightSep()
-  }
   text('¡Gracias por su compra!', { align: 'center', bold: true })
   text(company?.name || 'EMPRESA', { align: 'center', bold: true })
   const endBytesModern = [10, 10, 10]
@@ -448,29 +483,33 @@ export function buildInvoiceEscposModern({ invoice, company, customer, qrText = 
    ZPL — impresion por transferencia termica (Zebra, Xprinter, Rongta)
    ================================================================= */
 
-export function buildInvoiceZpl({ invoice, company, customer, qrText = '' }) {
-  const width = 800
+export function buildInvoiceZpl({ invoice, company, customer, qrText = '', paperWidth = '80' }) {
+  // Ancho real en puntos (203 dpi = 8 puntos/mm): 80 mm -> 640, 58 mm -> 448.
+  const widthMm = Number(paperWidth) || 80
+  const width = widthMm >= 100 ? 800 : widthMm >= 75 ? 640 : 448
   const items = invoice?.items || []
-  const estimatedHeight = Math.min(2200, 660 + items.length * 58 + (qrText ? 300 : 0))
+  const estimatedHeight = Math.min(2600, 980 + items.length * 58 + (qrText ? 300 : 0))
   const lines = []
   let y = 24
   const push = (text) => lines.push(text)
+  const printable = width - 32 // 16 puntos de margen por lado
   const separator = () => {
-    push(`^FO16,${y}^GB768,2,2^FS`)
+    push(`^FO16,${y}^GB${printable},2,2^FS`)
     y += 12
   }
-  const field = (text, { size = 26, bold = false, align = 'left', width = 768, maxLines = 3 } = {}) => {
+  const field = (text, { size = 26, bold = false, align = 'left', width: fieldWidth = 0, maxLines = 3 } = {}) => {
+    const fw = fieldWidth > 0 ? Math.min(fieldWidth, printable) : printable
     const safe = zplEscape(text)
-    const charsPerLine = Math.max(1, Math.floor(width / (size * 0.62)))
+    const charsPerLine = Math.max(1, Math.floor(fw / (size * 0.62)))
     const usedLines = Math.max(1, Math.min(maxLines, Math.ceil(safe.length / charsPerLine)))
-    const x = align === 'center' ? Math.round((width - 768) / 2 + 16) : align === 'right' ? 784 - width : 16
+    const x = align === 'center' ? 16 + Math.round((printable - fw) / 2) : align === 'right' ? 16 + printable - fw : 16
     push(`^FO${x},${y}`)
     push(`^A${bold ? '2' : '0'}N,${size},${size}`)
-    push(`^FB${width},${maxLines},0,${align === 'center' ? 'C' : align === 'right' ? 'R' : 'L'}`)
+    push(`^FB${fw},${maxLines},0,${align === 'center' ? 'C' : align === 'right' ? 'R' : 'L'}`)
     push(`^FD${safe}^FS`)
     y += usedLines * size + 8
   }
-  const centered = (text, size, bold = false) => field(text, { size, bold, align: 'center', width: 768, maxLines: 2 })
+  const centered = (text, size, bold = false) => field(text, { size, bold, align: 'center', maxLines: 2 })
 
   push('^XA')
   push(`^PW${width}`)
@@ -480,7 +519,6 @@ export function buildInvoiceZpl({ invoice, company, customer, qrText = '' }) {
   if (isFiscalInvoice(invoice) && company?.rnc) centered(`RNC: ${company.rnc}`, 24)
   if (company?.address) centered(company.address, 22, false)
   if (company?.phone || company?.whatsapp) centered([company.phone && `Tel: ${company.phone}`, company.whatsapp && `WA: ${company.whatsapp}`].filter(Boolean).join(' | '), 22)
-  if (company?.email) centered(company.email, 22)
   separator()
 
   centered('FACTURA', 40, true)
@@ -492,7 +530,7 @@ export function buildInvoiceZpl({ invoice, company, customer, qrText = '' }) {
     y += 108
   }
   if (invoice?.ncf) centered(`NCF: ${invoice.ncf}`, 24)
-  centered(formatDate(invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate), 24)
+  centered(`FECHA EMISION: ${formatDate(invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate)}`, 26, true)
   separator()
 
   field(`CLIENTE: ${customer?.name || invoice?.customerName || 'Consumidor final'}`, { size: 26, bold: true })
@@ -500,7 +538,6 @@ export function buildInvoiceZpl({ invoice, company, customer, qrText = '' }) {
   const customerDocument = fiscal && customer?.rnc ? `RNC: ${customer.rnc}` : fiscal && customer?.cedula ? `CEDULA: ${customer.cedula}` : ''
   if (customerDocument) field(customerDocument, { size: 24 })
   if (customer?.phone || customer?.whatsapp) field(`Tel: ${customer.phone || customer.whatsapp}`, { size: 24 })
-  if (invoice?.seller) field(`VENDEDOR: ${invoice.seller}`, { size: 24 })
   separator()
 
   items.forEach((item, index) => {
@@ -520,6 +557,12 @@ export function buildInvoiceZpl({ invoice, company, customer, qrText = '' }) {
   totalLine('TOTAL', currency.format(invoice?.totals?.total || 0), 34, true)
   separator('=')
 
+  for (const block of ticketWarrantyBlocks(company)) {
+    field(block.heading, { size: 26, bold: true })
+    field(block.body, { size: 22, maxLines: 10 })
+    separator()
+  }
+
   if (qrText) {
     field('', { size: 8 })
     push(`^FO${Math.round((width - 240) / 2)},${y}^BQN,2,6`)
@@ -529,10 +572,6 @@ export function buildInvoiceZpl({ invoice, company, customer, qrText = '' }) {
     separator()
   }
 
-  if (company?.warrantyText) {
-    field(company.warrantyText, { size: 22, maxLines: 8 })
-    separator()
-  }
   centered(company?.name || 'EMPRESA', 24, true)
   push('^XZ')
   return lines.join('\n')
@@ -756,13 +795,12 @@ export function buildInvoiceEpl({ invoice, company, customer, qrText = '' }) {
     y += 96
   }
   if (invoice?.ncf) centered(`NCF: ${invoice.ncf}`, 2)
-  centered(formatDate(invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate), 1)
+  centered(`FECHA EMISION: ${formatDate(invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate)}`, 2, true)
   lines.push('LO30,20,740,2')
   y += 10
   text(`CLIENTE: ${customer?.name || invoice?.customerName || 'Consumidor final'}`, 2, true)
   const customerDocument = fiscal && customer?.rnc ? `RNC: ${customer.rnc}` : fiscal && customer?.cedula ? `CEDULA: ${customer.cedula}` : ''
   if (customerDocument) text(customerDocument, 1)
-  if (invoice?.seller) text(`VENDEDOR: ${invoice.seller}`, 1)
   items.forEach((item, index) => {
     text(`${index + 1}. ${item.name || 'Producto'}`, 2, true)
     text(`${item.quantity} x ${currency.format(item.price || 0)} = ${currency.format((Number(item.net || 0) || 0) + (Number(item.tax || 0) || 0))}`, 1)
@@ -780,6 +818,10 @@ export function buildInvoiceEpl({ invoice, company, customer, qrText = '' }) {
   totalLine('PAGADO', currency.format(paidAmount(invoice)))
   totalLine('PENDIENTE', currency.format(balanceDue(invoice)))
   totalLine('TOTAL', currency.format(invoice?.totals?.total || 0), 2, true)
+  for (const block of ticketWarrantyBlocks(company)) {
+    centered(block.heading, 2, true)
+    for (const chunk of wrapLines(block.body, 38)) text(chunk, 1)
+  }
   if (qrText) {
     y += 14
     lines.push(`b8,300,${y},2,2,5,"${textForLabel(qrText, 220)}"`)
@@ -787,7 +829,6 @@ export function buildInvoiceEpl({ invoice, company, customer, qrText = '' }) {
     lines.push(`A400,${y},0,1,1,1,C,"Escanee el QR"`)
     y += 30
   }
-  if (company?.warrantyText) text(company.warrantyText, 1)
   centered(company?.name || 'EMPRESA', 2, true)
   lines.push(`Q${Math.ceil(y / 10) + 60},024`)
   lines.push('P1')
@@ -827,12 +868,11 @@ export function buildInvoiceTspl({ invoice, company, customer, qrText = '' }) {
     y += 100
   }
   if (invoice?.ncf) centered(`NCF: ${invoice.ncf}`, 22)
-  centered(formatDate(invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate), 20)
+  centered(`FECHA EMISION: ${formatDate(invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate)}`, 22, true)
   y += 6
   text(`CLIENTE: ${customer?.name || invoice?.customerName || 'Consumidor final'}`, 22, true)
   const customerDocument = fiscal && customer?.rnc ? `RNC: ${customer.rnc}` : fiscal && customer?.cedula ? `CEDULA: ${customer.cedula}` : ''
   if (customerDocument) text(customerDocument, 20)
-  if (invoice?.seller) text(`VENDEDOR: ${invoice.seller}`, 20)
   items.forEach((item, index) => {
     text(`${index + 1}. ${item.name || 'Producto'}`, 22, true)
     text(`${item.quantity} x ${currency.format(item.price || 0)} = ${currency.format((Number(item.net || 0) || 0) + (Number(item.tax || 0) || 0))}`, 20)
@@ -849,14 +889,17 @@ export function buildInvoiceTspl({ invoice, company, customer, qrText = '' }) {
   totalLine('PAGADO', currency.format(paidAmount(invoice)))
   totalLine('PENDIENTE', currency.format(balanceDue(invoice)))
   totalLine('TOTAL', currency.format(invoice?.totals?.total || 0), 30, true)
+  for (const block of ticketWarrantyBlocks(company)) {
+    centered(block.heading, 22, true)
+    for (const chunk of wrapLines(block.body, 40)) text(chunk, 18)
+  }
   if (qrText) {
     y += 12
     lines.push(`QRCODE 300,${y},M,4,A,0,"${textForLabel(qrText, 220)}"`)
     y += 200
-    lines.push('TEXT 160,300,"TSS24.BF",0,1,1,"Escanee el QR"')
+    lines.push(`TEXT 160,${y},"TSS24.BF",0,1,1,"Escanee el QR"`)
     y += 40
   }
-  if (company?.warrantyText) text(company.warrantyText, 18)
   centered(company?.name || 'EMPRESA', 22, true)
   lines.push('PRINT 1')
   return lines.join('\n')
@@ -872,7 +915,11 @@ export function buildTestTspl() {
 
 export function buildInvoiceCpcl({ invoice, company, customer, qrText = '' }) {
   const items = invoice?.items || []
-  const lines = ['! 0 200 200 800 1']
+  // Altura de pagina dinamica: el texto de garantia/devoluciones es largo y
+  // el alto fijo original (800) lo cortaba.
+  const warrantyLineCount = ticketWarrantyBlocks(company).reduce((total, block) => total + 1 + wrapLines(block.body, 42).length, 0)
+  const pageHeight = 900 + warrantyLineCount * 80 + (qrText ? 140 : 0)
+  const lines = [`! 0 200 200 ${pageHeight} 1`]
   let y = 24
   const text = (value, size = 3) => {
     lines.push(`TEXT ${size} 0 30 ${y} ${textForLabel(value, 44)}`)
@@ -896,11 +943,10 @@ export function buildInvoiceCpcl({ invoice, company, customer, qrText = '' }) {
     y += 100
   }
   if (invoice?.ncf) centered(`NCF: ${invoice.ncf}`, 2)
-  centered(formatDate(invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate), 2)
+  centered(`FECHA EMISION: ${formatDate(invoice?.issuedAt || invoice?.createdAt || invoice?.issueDate)}`, 3)
   text(`CLIENTE: ${customer?.name || invoice?.customerName || 'Consumidor final'}`, 3)
   const customerDocument = fiscal && customer?.rnc ? `RNC: ${customer.rnc}` : fiscal && customer?.cedula ? `CEDULA: ${customer.cedula}` : ''
   if (customerDocument) text(customerDocument, 2)
-  if (invoice?.seller) text(`VENDEDOR: ${invoice.seller}`, 2)
   items.forEach((item, index) => {
     text(`${index + 1}. ${item.name || 'Producto'}`, 3)
     text(`${item.quantity} x ${currency.format(item.price || 0)} = ${currency.format((Number(item.net || 0) || 0) + (Number(item.tax || 0) || 0))}`, 2)
@@ -916,13 +962,16 @@ export function buildInvoiceCpcl({ invoice, company, customer, qrText = '' }) {
   totalLine('PAGADO', currency.format(paidAmount(invoice)))
   totalLine('PENDIENTE', currency.format(balanceDue(invoice)))
   totalLine('TOTAL', currency.format(invoice?.totals?.total || 0), 3)
+  for (const block of ticketWarrantyBlocks(company)) {
+    centered(block.heading, 3)
+    for (const chunk of wrapLines(block.body, 42)) text(chunk, 2)
+  }
   if (qrText) {
     y += 10
     lines.push(`QR 3 30 ${y} 50 M 1 "${textForLabel(qrText, 220)}"`)
     y += 130
     centered('Escanee el QR', 2)
   }
-  if (company?.warrantyText) text(company.warrantyText, 2)
   centered(company?.name || 'EMPRESA', 3)
   lines.push('FORM')
   lines.push('PRINT')

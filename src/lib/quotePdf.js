@@ -149,7 +149,8 @@ export async function printQuotePdf() {
   const pdf = await buildQuotePdf()
   if (!pdf) return
   pdf.autoPrint()
-  const url = URL.createObjectURL(pdf.output('blob'))
+  // Data URI en vez de Blob URL (misma razon: particion de almacenamiento de Chrome).
+  const url = pdf.output('datauristring')
   const frame = document.createElement('iframe')
   frame.style.position = 'fixed'
   frame.style.right = '0'
@@ -163,7 +164,6 @@ export async function printQuotePdf() {
     frame.contentWindow?.focus()
     window.setTimeout(() => {
       frame.remove()
-      URL.revokeObjectURL(url)
     }, 3000)
   }
 }

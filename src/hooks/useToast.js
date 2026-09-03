@@ -24,6 +24,9 @@ export const useToast = create((set) => ({
   success(message) {
     return useToast.getState().push({ type: 'success', message, duration: 3000 })
   },
+  info(message) {
+    return useToast.getState().push({ type: 'info', message, duration: 3000 })
+  },
   warning(message) {
     return useToast.getState().push({ type: 'warning', message, duration: 5000 })
   },
